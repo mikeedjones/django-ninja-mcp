@@ -41,7 +41,7 @@ import httpx
 import mcp.types as types
 from django.http import HttpResponse
 from mcp.server.lowlevel.server import Server
-from ninja import Body, NinjaAPI, Query, Router
+from ninja import Body, NinjaAPI, Path, Router
 from ninja.openapi import get_schema
 
 from .openapi.convert import convert_openapi_to_mcp_tools
@@ -192,11 +192,9 @@ class NinjaMCP:
                 yield event
 
         # Define the endpoint for receiving messages from clients
-        @router.post(
-            f"{mount_path}/messages/", include_in_schema=False, response=Dict[str, Any], operation_id="mcp_messages"
-        )
+        @router.post("/{session_id}", include_in_schema=False, response=Dict[str, Any], operation_id="mcp_messages")
         async def handle_post_message(
-            request, session_id: Query[UUID], message: Body[types.JSONRPCMessage]
+            request, session_id: Path[UUID], message: Body[types.JSONRPCMessage]
         ) -> HttpResponse:
             """Handle POST messages from MCP clients."""
             return await self.sse_transport.handle_post_message(session_id, message)

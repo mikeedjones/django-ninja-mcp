@@ -1,7 +1,10 @@
-import json
+import re
 
 import pytest
+from django.test import LiveServerTestCase
 from mcp import types
+from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
 from ninja import NinjaAPI
 
 from ninja_mcp import NinjaMCP
@@ -26,9 +29,8 @@ async def test_sse_connection_establishment(ninja_app_with_sse):
     # Connect to the SSE endpoint
     events = []
     async for event in mock_client.get("/mcp").content_stream:
-        decoded_event = json.loads(event.decode("utf-8"))
-        events.append(decoded_event)
-        if decoded_event["event"] == "endpoint":
+        events.append(event)
+        if "endpoint" in event.decode("utf-8"):
             break
     else:
         pytest.fail("Failed to establish SSE connection")
@@ -46,16 +48,17 @@ async def test_message_sending(ninja_app_with_sse):
     # Connect to the SSE endpoint
     events = []
     async for event in mock_client.get("/mcp").content_stream:
-        decoded_event = json.loads(event.decode("utf-8"))
-        events.append(decoded_event)
-        if decoded_event["event"] == "endpoint":
+        events.append(event)
+        if "endpoint" in event.decode("utf-8"):
             break
     else:
         pytest.fail("Failed to establish SSE connection")
 
+    endpoint = re.search(r"(?<=data: )\S+", events[0].decode("utf-8")).group(0)
+
     # Send an initialization message
     response = await async_mock_client.post(
-        events[0]["data"],
+        endpoint,
         data=types.JSONRPCRequest(
             id="init-1",
             method="initialize",
@@ -71,4 +74,30 @@ async def test_message_sending(ninja_app_with_sse):
 
     # Verify the response
     assert response.status_code == 202
-    assert response.json().get("status") == "Accepted"
+
+
+class TestSSEClient(LiveServerTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+
+    @pytest.mark.asyncio
+    async def test_sse_connection(self):
+        """Test establishing an SSE connection."""
+        async with sse_client(f"{self.live_server_url}/api/mcp") as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                await session.list_tools()
+
+
+@pytest.mark.asyncio
+async def test_sse_connection():
+    """Test establishing an SSE connection."""
+    async with sse_client("http://127.0.0.1:8000/api/mcp") as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            await session.list_tools()

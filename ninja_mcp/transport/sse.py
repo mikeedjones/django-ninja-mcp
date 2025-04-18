@@ -24,7 +24,6 @@ The transport manages bidirectional communication:
 """
 
 import asyncio
-import json
 import logging
 from typing import Dict
 from uuid import UUID, uuid4
@@ -101,7 +100,6 @@ class DjangoSseServerTransport:
         self._read_stream_writers[session_id] = read_stream_writer
 
         # Prepare the session URI that clients will use for POSTing messages
-        session_uri = f"{self._endpoint}?session_id={session_id.hex}"
         logger.debug(f"Created new session with ID: {session_id}, channel: {channel_name}")
 
         # Set up a task to forward messages from write_stream to the SSE channel
@@ -109,16 +107,14 @@ class DjangoSseServerTransport:
             try:
                 logger.debug(f"Starting SSE writer for session {session_id}")
                 # Send the endpoint info as the first event
-                yield json.dumps({"event": "endpoint", "data": session_uri})
-                logger.debug(f"Sent endpoint event: {session_uri}")
+                yield f"event: endpoint\ndata: {session_id}\n\n"
+                logger.debug(f"Sent endpoint event: {session_id}")
 
                 # Then listen for messages and forward them as SSE events
                 async with write_stream_reader:
                     async for message in write_stream_reader:
                         logger.debug(f"Sending message via SSE: {message}")
-                        yield json.dumps(
-                            {"event": "message", "data": message.model_dump_json(by_alias=True, exclude_none=True)}
-                        )
+                        yield f"event: message\ndata: {message.model_dump_json()}\n\n"
             except Exception as e:
                 logger.error(f"Error in SSE writer: {e}")
             finally:
@@ -154,7 +150,8 @@ class DjangoSseServerTransport:
 
         Args:
         ----
-            request: The Django HttpRequest containing the client message
+            session_id: The ID of the session to which the message belongs
+            message: The JSON-RPC message to be sent
 
         Returns:
         -------
@@ -167,7 +164,7 @@ class DjangoSseServerTransport:
             logger.warning(f"Could not find session for ID: {session_id}")
             return JsonResponse({"error": "Could not find session"}, status=404)
 
-        await writer.send(message)
+        asyncio.create_task(writer.send(message))
 
         # Return success response
         return JsonResponse({"status": "Accepted"}, status=202)
