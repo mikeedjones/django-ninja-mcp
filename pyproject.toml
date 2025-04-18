@@ -3,10 +3,10 @@ name = "django-ninja-mcp"
 version = "0.1.0"
 description = "MCP extension for django-ninja"
 readme = "README.md"
-requires = ["Django >=3.1", "pydantic >=2.0,<3.0.0", "django-ninja > 1.0"]
-description-file = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "daphne>=4.1.2",
+    "django-eventstream>=5.3.2",
     "django-ninja>=1.4.1",
     "mcp>=1.6.0",
     "pydantic>=2.5.3",

@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.urls import path
-
 from ninja import NinjaAPI
+
+from ninja_mcp import NinjaMCP
 
 api_v1 = NinjaAPI()
 api_v1.add_router("events", "someapp.api.router")
@@ -41,6 +42,12 @@ def put_foobar(request):
 
 api_multi_param = NinjaAPI(version="1.0.1")
 api_multi_param.add_router("", "multi_param.api.router")
+
+# Mount the NinjaMCP server
+mcp = NinjaMCP(
+    api_multi_param, name="Test MCP Server", description="Test description", base_url="http://localhost:8000"
+)
+mcp.mount()
 
 urlpatterns = [
     path("admin/", admin.site.urls),

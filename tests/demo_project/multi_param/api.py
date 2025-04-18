@@ -1,18 +1,6 @@
 """Test App to use with Swagger UI and in unit tests"""
 
-from ninja import (
-    Body,
-    Cookie,
-    Field,
-    File,
-    Form,
-    Header,
-    Path,
-    Query,
-    Router,
-    Schema,
-    UploadedFile,
-)
+from ninja import Body, Cookie, Field, File, Form, Header, Path, Query, Router, Schema, UploadedFile
 
 router = Router()
 

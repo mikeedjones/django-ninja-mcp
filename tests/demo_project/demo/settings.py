@@ -12,6 +12,8 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
+    "daphne",
+    "django_eventstream",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -53,6 +55,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "demo.wsgi.application"
 
+ASGI_APPLICATION = "demo.asgi.application"
 
 DATABASES = {
     "default": {
@@ -60,7 +63,6 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
-
 
 LANGUAGE_CODE = "en-us"
 

@@ -2,9 +2,8 @@ from datetime import date
 from typing import List
 
 from django.shortcuts import get_object_or_404
-from pydantic import BaseModel
-
 from ninja import Router
+from pydantic import BaseModel
 
 from .models import Event
 
