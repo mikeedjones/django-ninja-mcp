@@ -3,7 +3,7 @@ name: Test Coverage
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   uv-example:
