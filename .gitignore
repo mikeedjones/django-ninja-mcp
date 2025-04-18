@@ -13,5 +13,4 @@ docs/site
 
 .DS_Store
 .idea
-.python-version
 tests/demo_project/db.sqlite3
