@@ -83,8 +83,7 @@ async def test_call_tool_raise_error(lowlevel_server_simple_app: Server):
         assert len(response.content) > 0
 
         text_content = next(c for c in response.content if isinstance(c, types.TextContent))
-        assert "500" in text_content.text
-        assert "internal server error" in text_content.text.lower()
+        assert "This is a test error" in text_content.text
 
 
 @pytest.mark.asyncio
@@ -146,7 +145,7 @@ async def test_call_tool_list_items_default(lowlevel_server_simple_app: Server):
 @pytest.mark.asyncio
 async def test_call_list_items_with_limit(simple_ninja_app):
     test_client = TestAsyncClient(simple_ninja_app)
-    resp = await test_client.get("/items", params={"skip": 1, "limit": 1})
+    resp = await test_client.get("/items", query_params={"skip": 1, "limit": 1})
     assert resp.status_code == 200
     assert len(resp.json()) == 1
 

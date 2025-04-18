@@ -11,7 +11,7 @@ from ninja.openapi import get_schema
 
 from .openapi.convert import convert_openapi_to_mcp_tools
 from .transport.sse import NinjaAPISseTransport
-from .types import AsyncClientProtocol
+from .types import AsyncClientProtocol, ResponseProtocol
 
 logger = getLogger(__name__)
 
@@ -172,14 +172,6 @@ class NinjaMCP:
         async def handle_post_message(request: HttpRequest):
             return await sse_transport.handle_fastapi_post_message(request)
 
-        # HACK: If we got a router and not a FastAPI instance, we need to re-include the router so that
-        # FastAPI will pick up the new routes we added. The problem with this approach is that we assume
-        # that the router is a sub-router of self.fastapi, which may not always be the case.
-        #
-        # TODO: Find a better way to do this.
-        if isinstance(router, Router):
-            self.ninja.include_router(router)
-
         logger.info(f"MCP server listening at {mount_path}")
 
     async def _execute_api_tool(
@@ -241,38 +233,25 @@ class NinjaMCP:
 
         body = arguments if arguments else None
 
+        logger.debug(f"Making {method.upper()} request to {url}")
+        response = await self._request(client, method, url, query, headers, body)
+
         try:
-            logger.debug(f"Making {method.upper()} request to {url}")
-            response = await self._request(client, method, url, query, headers, body)
+            result = response.json()
+            result_text = json.dumps(result, indent=2)
+        except json.JSONDecodeError:
+            if hasattr(response, "text"):
+                result_text = response.text
+            else:
+                result_text = response.content
 
-            # TODO: Better typing for the AsyncClientProtocol. It should return a ResponseProtocol
-            # that has a json() method that returns a dict/list/etc.
-            try:
-                result = response.json()
-                result_text = json.dumps(result, indent=2)
-            except json.JSONDecodeError:
-                if hasattr(response, "text"):
-                    result_text = response.text
-                else:
-                    result_text = response.content
+        # If not raising an exception, the MCP server will return the result as a regular text response,
+        if response.status_code != 200:
+            raise Exception(
+                f"Error calling {tool_name}. Status code: {response.status_code}. Response: {response.text}"
+            )
 
-            # If not raising an exception, the MCP server will return the result as a regular text response,
-            # without marking it as an error.
-            # TODO: Use a raise_for_status() method on the response
-            # (it needs to also be implemented in the AsyncClientProtocol)
-            if 400 <= response.status_code < 600:
-                raise Exception(
-                    f"Error calling {tool_name}. Status code: {response.status_code}. Response: {response.text}"
-                )
-
-            try:
-                return [types.TextContent(type="text", text=result_text)]
-            except ValueError:
-                return [types.TextContent(type="text", text=result_text)]
-
-        except Exception as e:
-            logger.exception(f"Error calling {tool_name}")
-            raise e
+        return [types.TextContent(type="text", text=result_text)]
 
     async def _request(
         self,
@@ -282,7 +261,7 @@ class NinjaMCP:
         query: Dict[str, Any],
         headers: Dict[str, str],
         body: Optional[Any],
-    ) -> Any:
+    ) -> ResponseProtocol:
         """Make the actual HTTP request."""
         if method.lower() == "get":
             return await client.get(url, params=query, headers=headers)

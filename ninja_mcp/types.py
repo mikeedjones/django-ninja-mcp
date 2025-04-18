@@ -1,10 +1,23 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Any, Dict, Optional, Protocol
 
-from typing import Any, Protocol, Optional, Dict
+from pydantic import BaseModel, ConfigDict, JsonValue
 
 
 class BaseType(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class ResponseProtocol(Protocol):
+    """Protocol defining the interface for HTTP responses."""
+
+    status_code: int
+    headers: Dict[str, str]
+    content: bytes
+    text: str
+
+    def json(self) -> JsonValue: ...
+
+    def raise_for_status(self) -> None: ...
 
 
 class AsyncClientProtocol(Protocol):
@@ -21,7 +34,7 @@ class AsyncClientProtocol(Protocol):
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Any] = None,
-    ) -> Any: ...
+    ) -> ResponseProtocol: ...
 
     async def put(
         self,
@@ -30,11 +43,11 @@ class AsyncClientProtocol(Protocol):
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Any] = None,
-    ) -> Any: ...
+    ) -> ResponseProtocol: ...
 
     async def delete(
         self, url: str, *, params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None
-    ) -> Any: ...
+    ) -> ResponseProtocol: ...
 
     async def patch(
         self,
@@ -43,4 +56,4 @@ class AsyncClientProtocol(Protocol):
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Any] = None,
-    ) -> Any: ...
+    ) -> ResponseProtocol: ...
