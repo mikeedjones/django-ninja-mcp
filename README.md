@@ -110,19 +110,6 @@ admin_api = NinjaAPI(urls_namespace="admin")
 mcp_server.mount(admin_api, mount_path="/admin/mcp")
 ```
 
-
-## Requirements
-
-- Python 3.10+
-- Django
-- Django Ninja
-- httpx
-- mcp (Model Context Protocol Python library)
-
-## License
-
-[MIT License](LICENSE)
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
