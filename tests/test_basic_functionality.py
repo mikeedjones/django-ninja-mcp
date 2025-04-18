@@ -38,7 +38,7 @@ def test_default_values(simple_ninja_app: NinjaAPI):
     # Check that the MCP server was properly mounted
     # Look for a route that includes our mount path in its pattern
     routes, _, _ = simple_ninja_app.urls
-    assert any(route.pattern.regex.match("/mcp") for route in routes), "MCP server mount point not found in app routes"
+    assert any(route.pattern.regex.match("mcp") for route in routes), "MCP server mount point not found in app routes"
 
 
 def test_normalize_paths(simple_ninja_app: NinjaAPI):

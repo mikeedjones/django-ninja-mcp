@@ -5,9 +5,9 @@ import pytest
 from mcp.server.lowlevel import Server
 from mcp.shared.memory import create_connected_server_and_client_session
 from ninja import NinjaAPI
-from ninja.testing import TestAsyncClient
 
 from ninja_mcp import NinjaMCP
+from ninja_mcp.testing import TestAsyncClient
 
 from .fixtures.types import Item
 
