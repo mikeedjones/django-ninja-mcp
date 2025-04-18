@@ -2,7 +2,7 @@
 
 [project]
 name = "django-ninja-mcp"
-version = "0.1.0"
+version = "0.0.1"
 description = "MCP extension for django-ninja"
 readme = "README.md"
 requires-python = ">=3.10"
