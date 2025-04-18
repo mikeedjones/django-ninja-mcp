@@ -143,14 +143,6 @@ async def test_call_tool_list_items_default(lowlevel_server_simple_app: Server):
 
 
 @pytest.mark.asyncio
-async def test_call_list_items_with_limit(simple_ninja_app):
-    test_client = TestAsyncClient(simple_ninja_app)
-    resp = await test_client.get("/items", query_params={"skip": 1, "limit": 1})
-    assert resp.status_code == 200
-    assert len(resp.json()) == 1
-
-
-@pytest.mark.asyncio
 async def test_call_tool_list_items_with_pagination(lowlevel_server_simple_app: Server):
     async with create_connected_server_and_client_session(lowlevel_server_simple_app) as client_session:
         response = await client_session.call_tool("list_items", {"skip": 1, "limit": 1})

@@ -28,10 +28,6 @@ class NinjaAPISseTransport(SseServerTransport):
         3. Use Ninja's native response handling mechanisms and exception patterns to
            avoid unexpected rabbit holes.
 
-        The combination of mounting a whole Starlette app and reconstructing the scope
-        and send from the request proved to be especially error-prone for us when using
-        tracing tools like Sentry, which had destructive effects on the request object
-        when using the original implementation.
         """
         logger.debug("Handling POST message with Ninja patterns")
 
@@ -83,7 +79,7 @@ class NinjaAPISseTransport(SseServerTransport):
     async def _send_message_safely(
         self, writer: MemoryObjectSendStream[JSONRPCMessage], message: Union[JSONRPCMessage, ValidationError]
     ):
-        """Send a message to the writer, avoiding ASGI race conditions"""
+        """Send a message to the writer, avoiding ASGI race conditions."""
         try:
             logger.debug(f"Sending message to writer from background task: {message}")
 
