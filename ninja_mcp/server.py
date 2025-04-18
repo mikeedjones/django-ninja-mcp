@@ -9,8 +9,9 @@ from mcp.server.lowlevel.server import Server
 from ninja import NinjaAPI, Router
 from ninja.openapi import get_schema
 
+from ninja_mcp.transport.sse import NinjaAPISseTransport
+
 from .openapi.convert import convert_openapi_to_mcp_tools
-from .transport.sse import NinjaAPISseTransport
 from .types import AsyncClientProtocol, ResponseProtocol
 
 logger = getLogger(__name__)
@@ -32,7 +33,7 @@ class NinjaMCP:
         exclude_tags: Optional[List[str]] = None,
     ):
         """
-        Create an MCP server from a FastAPI app.
+        Create an MCP server from a Django Ninja app.
 
         Args:
         ----
@@ -78,7 +79,7 @@ class NinjaMCP:
         self.setup_server()
 
     def setup_server(self) -> None:
-        # Get OpenAPI schema from FastAPI app
+        # Get OpenAPI schema from ninja app
         openapi_schema = get_schema(api=self.ninja, path_prefix="")
 
         # Convert OpenAPI schema to MCP tools
@@ -122,13 +123,13 @@ class NinjaMCP:
         """
         Mount the MCP server to **any** NinjaAPI app or Router.
 
-        There is no requirement that the FastAPI app or Router is the same as the one that the MCP
+        There is no requirement that the Ninja app or Router is the same as the one that the MCP
         server was created from.
 
         Args:
         ----
-            router: The FastAPI app or Router to mount the MCP server to. If not provided, the MCP
-                    server will be mounted to the FastAPI app.
+            router: The Ninja app or Router to mount the MCP server to. If not provided, the MCP
+                    server will be mounted to the Ninja app.
             mount_path: Path where the MCP server will be mounted
 
         """
@@ -141,12 +142,11 @@ class NinjaMCP:
         if not router:
             router = self.ninja
 
-        messages_path = f"{mount_path}/messages/"
-
-        sse_transport = NinjaAPISseTransport(messages_path)
+        sse_mount_path = f"{mount_path}/messages"
+        sse_transport = NinjaAPISseTransport(sse_mount_path)
 
         # Route for MCP connection
-        @router.get(mount_path, include_in_schema=False, operation_id="mcp_connection")
+        @router.get(sse_mount_path, include_in_schema=False, operation_id="mcp_connection")
         async def handle_mcp_connection(request: HttpRequest):
             async with sse_transport.connect_sse(request.scope, request.receive, request._send) as (reader, writer):
                 await self.server.run(
@@ -156,13 +156,9 @@ class NinjaMCP:
                 )
 
         # Route for MCP messages
-        @router.post(
-            f"{mount_path}/messages/",
-            include_in_schema=False,
-            operation_id="mcp_messages",
-        )
+        @router.post(sse_mount_path, include_in_schema=False, operation_id="mcp_messages")
         async def handle_post_message(request: HttpRequest):
-            return await sse_transport.handle_fastapi_post_message(request)
+            return await sse_transport.handle_ninja_post_message(request)
 
         logger.info(f"MCP server listening at {mount_path}")
 

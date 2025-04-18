@@ -7,8 +7,8 @@ import mcp.types as types
 from .utils import (
     clean_schema_for_display,
     generate_example_from_schema,
-    resolve_schema_references,
     get_single_param_type_from_schema,
+    resolve_schema_references,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,14 +23,17 @@ def convert_openapi_to_mcp_tools(
     Convert OpenAPI operations to MCP tools.
 
     Args:
+    ----
         openapi_schema: The OpenAPI schema
         describe_all_responses: Whether to include all possible response schemas in tool descriptions
         describe_full_response_schema: Whether to include full response schema in tool descriptions
 
     Returns:
+    -------
         A tuple containing:
         - A list of MCP tools
         - A mapping of operation IDs to operation details for HTTP execution
+
     """
     # Resolve all references in the schema at once
     resolved_openapi_schema = resolve_schema_references(openapi_schema, openapi_schema)

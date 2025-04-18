@@ -2,10 +2,7 @@ from typing import Any, Dict
 
 
 def get_single_param_type_from_schema(param_schema: Dict[str, Any]) -> str:
-    """
-    Get the type of a parameter from the schema.
-    If the schema is a union type, return the first type.
-    """
+    """Get the type of a parameter from the schema if the schema is a union type, return the first type."""
     if "anyOf" in param_schema:
         types = {schema.get("type") for schema in param_schema["anyOf"] if schema.get("type")}
         if "null" in types:
@@ -21,11 +18,14 @@ def resolve_schema_references(schema_part: Dict[str, Any], reference_schema: Dic
     Resolve schema references in OpenAPI schemas.
 
     Args:
+    ----
         schema_part: The part of the schema being processed that may contain references
         reference_schema: The complete schema used to resolve references from
 
     Returns:
+    -------
         The schema with references resolved
+
     """
     # Make a copy to avoid modifying the input schema
     schema_part = schema_part.copy()
@@ -62,10 +62,13 @@ def clean_schema_for_display(schema: Dict[str, Any]) -> Dict[str, Any]:
     Clean up a schema for display by removing internal fields.
 
     Args:
+    ----
         schema: The schema to clean
 
     Returns:
+    -------
         The cleaned schema
+
     """
     # Make a copy to avoid modifying the input schema
     schema = schema.copy()
@@ -105,10 +108,13 @@ def generate_example_from_schema(schema: Dict[str, Any]) -> Any:
     Generate a simple example response from a JSON schema.
 
     Args:
+    ----
         schema: The JSON schema to generate an example from
 
     Returns:
+    -------
         An example object based on the schema
+
     """
     if not schema or not isinstance(schema, dict):
         return None
