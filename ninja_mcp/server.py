@@ -141,15 +141,7 @@ class NinjaMCP:
         if not router:
             router = self.ninja
 
-        # Build the base path correctly for the SSE transport
-        if isinstance(router, NinjaAPI):
-            base_path = router.root_path
-        elif isinstance(router, Router):
-            base_path = self.ninja.root_path + router.prefix
-        else:
-            raise ValueError(f"Invalid router type: {type(router)}")
-
-        messages_path = f"{base_path}{mount_path}/messages/"
+        messages_path = f"{mount_path}/messages/"
 
         sse_transport = NinjaAPISseTransport(messages_path)
 
