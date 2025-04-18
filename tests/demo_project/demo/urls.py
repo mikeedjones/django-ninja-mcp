@@ -1,58 +1,16 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from ninja import NinjaAPI
 
 from ninja_mcp import NinjaMCP
 
-api_v1 = NinjaAPI()
-api_v1.add_router("events", "someapp.api.router")
-# TODO: check ^ for possible mistakes like `/events` `events/``
+api = NinjaAPI()
 
-
-api_v2 = NinjaAPI(version="2.0.0")
-
-
-@api_v2.get("events")
-def newevents2(request):
-    return "events are gone"
-
-
-api_v3 = NinjaAPI(version="3.0.0")
-
-
-@api_v3.get("events")
-def newevents3(request):
-    return "events are gone 3"
-
-
-@api_v3.get("foobar")
-def foobar(request):
-    return "foobar"
-
-
-@api_v3.post("foobar")
-def post_foobar(request):
-    return "foobar"
-
-
-@api_v3.put("foobar", url_name="foobar_put")
-def put_foobar(request):
-    return "foobar"
-
-
-api_multi_param = NinjaAPI(version="1.0.1")
-api_multi_param.add_router("", "multi_param.api.router")
-
-# Mount the NinjaMCP server
-mcp = NinjaMCP(
-    api_multi_param, name="Test MCP Server", description="Test description", base_url="http://localhost:8000"
-)
+mcp = NinjaMCP(api, name="Test MCP Server", description="Test description", base_url="http://localhost:8000")
 mcp.mount()
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", api_v1.urls),
-    path("api/v2/", api_v2.urls),
-    path("api/v3/", api_v3.urls),
-    path("api/mp/", api_multi_param.urls),
+    path("api/", api.urls),
+    path("events/", include("django_eventstream.urls")),
 ]
