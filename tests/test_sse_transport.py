@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 import pytest
@@ -87,11 +88,14 @@ class TestSSEClient(LiveServerTestCase):
 
     @pytest.mark.asyncio
     async def test_sse_connection(self):
-        """Test establishing an SSE connection."""
-        async with sse_client(f"{self.live_server_url}/api/mcp") as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                await session.list_tools()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async with asyncio.timeout(5):  # 5 second timeout
+            async with sse_client(f"{self.live_server_url}/api/mcp") as (read_stream, write_stream):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    await session.list_tools()
 
 
 @pytest.mark.asyncio
