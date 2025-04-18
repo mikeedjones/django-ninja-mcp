@@ -12,7 +12,6 @@ except Exception:
 
 from .server import NinjaMCP
 
-
 __all__ = [
     "NinjaMCP",
 ]
