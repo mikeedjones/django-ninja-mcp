@@ -4,7 +4,7 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/django-ninja-mcp.svg)](https://pypi.org/project/django-ninja-mcp/)
 [![License](https://img.shields.io/github/license/mikeedjones/django-ninja-mcp.svg)](https://github.com/mikeedjones/django-ninja-mcp/blob/main/LICENSE)
 
-Automatic Model Context Protocol (MCP) server generator for Django Ninja applications.
+Automatic Model Context Protocol (MCP) server generator for Django Ninja applications. Huge credit to [FastAPI-MCP](https://github.com/tadata-org/fastapi_mcp) for the original idea and implementation.
 
 ## What is MCP?
 
