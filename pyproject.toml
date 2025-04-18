@@ -7,6 +7,9 @@ name = "django-ninja-mcp"
 version = "0.0.1-alpha.1"
 description = "MCP extension for django-ninja"
 readme = "README.md"
+authors = [
+    { name = "Michael Jones", email = "mike.ed.jones@gmail.com" },
+]
 requires-python = ">=3.10"
 dependencies = [
     "daphne>=4.1.2",
@@ -43,3 +46,8 @@ docstring-code-line-length = 120
 
 [tool.hatch.build.targets.wheel]
 packages = ["ninja_mcp"]
+
+[project.urls]
+homepage = "https://github.com/mikeedjones/django-ninja-mcp"
+documentation = "https://github.com/mikeedjones/django-ninja-mcp"
+repository = "https://github.com/mikeedjones/django-ninja-mcp"
