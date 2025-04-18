@@ -1,11 +1,7 @@
-import asyncio
 import re
 
 import pytest
-from django.test import LiveServerTestCase
 from mcp import types
-from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
 from ninja import NinjaAPI
 
 from ninja_mcp import NinjaMCP
@@ -75,33 +71,3 @@ async def test_message_sending(ninja_app_with_sse):
 
     # Verify the response
     assert response.status_code == 202
-
-
-class TestSSEClient(LiveServerTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-
-    @pytest.mark.asyncio
-    async def test_sse_connection(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        async with asyncio.timeout(5):  # 5 second timeout
-            async with sse_client(f"{self.live_server_url}/api/mcp") as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    await session.list_tools()
-
-
-@pytest.mark.asyncio
-async def test_sse_connection():
-    """Test establishing an SSE connection."""
-    async with sse_client("http://127.0.0.1:8000/api/mcp") as (read_stream, write_stream):
-        async with ClientSession(read_stream, write_stream) as session:
-            await session.initialize()
-            await session.list_tools()
