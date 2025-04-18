@@ -1,10 +1,12 @@
-from typing import Any, Callable, Dict, Optional
+from json import loads as json_loads
+from typing import Any, Callable, Dict, Optional, Union
 from unittest.mock import Mock
 from urllib.parse import urljoin
 
-from django.http import QueryDict
+from django.http import QueryDict, StreamingHttpResponse
 from django.http.request import HttpHeaders, HttpRequest
-from ninja.testing.client import NinjaClientBase, NinjaResponse
+from ninja.responses import Response as HttpResponse
+from ninja.testing.client import NinjaClientBase
 
 
 def build_absolute_uri(location: Optional[str] = None) -> str:
@@ -77,6 +79,40 @@ class NinjaMCPClientBase(NinjaClientBase):
         return request
 
 
+class NinjaResponse:
+    content_stream = None
+
+    def __init__(self, http_response: Union[HttpResponse, StreamingHttpResponse]):
+        self._response = http_response
+        self.status_code = http_response.status_code
+        self.streaming = http_response.streaming
+        if self.streaming:
+            self.content_stream = http_response.streaming_content
+        else:
+            self.content = http_response.content  # type: ignore[union-attr]
+        self._data = None
+
+    def json(self) -> Any:
+        return json_loads(self.content)
+
+    @property
+    def data(self) -> Any:
+        if self._data is None:  # Recomputes if json() is None but cheap then
+            self._data = self.json()
+        return self._data
+
+    def __getitem__(self, key: str) -> Any:
+        return self._response[key]
+
+    def __getattr__(self, attr: str) -> Any:
+        return getattr(self._response, attr)
+
+
 class TestAsyncClient(NinjaMCPClientBase):
     async def _call(self, func: Callable, request: Mock, kwargs: Dict) -> "NinjaResponse":
         return NinjaResponse(await func(request, **kwargs))
+
+
+class TestClient(NinjaMCPClientBase):
+    def _call(self, func: Callable, request: Mock, kwargs: Dict) -> "NinjaResponse":
+        return NinjaResponse(func(request, **kwargs))

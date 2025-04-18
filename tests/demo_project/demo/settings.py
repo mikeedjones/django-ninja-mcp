@@ -12,9 +12,7 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
-    "daphne",
-    "django_eventstream",
-    "" "django.contrib.admin",
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -25,7 +23,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "django_eventstream.middleware.EventStreamMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

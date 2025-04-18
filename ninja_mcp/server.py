@@ -1,19 +1,54 @@
+"""
+Django Ninja MCP Integration Module.
+
+This module provides integration between Django Ninja and the Model Context Protocol (MCP).
+It converts Django Ninja API routes into MCP tools that can be used by MCP clients.
+
+Example usage:
+```python
+from django.urls import path
+from ninja import NinjaAPI
+from ninja_mcp import NinjaMCP
+
+api = NinjaAPI()
+
+
+@api.get("/hello")
+def hello(request):
+    return {"message": "Hello, world!"}
+
+
+# Create the MCP server
+mcp_server = NinjaMCP(ninja=api, base_url="http://localhost:8000/api", name="My API", description="My awesome API")
+
+# Mount the MCP server to the Ninja API
+mcp_server.mount(api, mount_path="/mcp")
+
+urlpatterns = [
+    path("api/", api.urls),
+]
+```
+
+This will make your Django Ninja API available as MCP tools at /api/mcp.
+"""
+
 import json
-from logging import getLogger
+import logging
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import httpx
 import mcp.types as types
-from django.core.handlers.asgi import ASGIRequest
+from django.http import HttpResponse
 from mcp.server.lowlevel.server import Server
-from ninja import NinjaAPI, Router
+from ninja import Body, NinjaAPI, Query, Router
 from ninja.openapi import get_schema
 
 from .openapi.convert import convert_openapi_to_mcp_tools
 from .transport.sse import DjangoSseServerTransport
 from .types import AsyncClientProtocol, ResponseProtocol
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class NinjaMCP:
@@ -32,7 +67,7 @@ class NinjaMCP:
         exclude_tags: Optional[List[str]] = None,
     ):
         """
-        Create an MCP server from a FastAPI app.
+        Create an MCP server from a Django Ninja API.
 
         Args:
         ----
@@ -60,10 +95,11 @@ class NinjaMCP:
         self.operation_map: Dict[str, Dict[str, Any]]
         self.tools: List[types.Tool]
         self.server: Server
+        self.sse_transport: Optional[DjangoSseServerTransport] = None
 
         self.ninja = ninja
-        self.name = name or self.ninja.title or "Ninja MCP"
-        self.description = description or self.ninja.description
+        self.name = name or getattr(self.ninja, "title", None) or "Ninja MCP"
+        self.description = description or getattr(self.ninja, "description", None)
 
         self._base_url = base_url
         self._describe_all_responses = describe_all_responses
@@ -78,7 +114,8 @@ class NinjaMCP:
         self.setup_server()
 
     def setup_server(self) -> None:
-        # Get OpenAPI schema from FastAPI app
+        """Initialize the MCP server with tools converted from the OpenAPI schema."""
+        # Get OpenAPI schema from Django Ninja API
         openapi_schema = get_schema(api=self.ninja, path_prefix="")
 
         # Convert OpenAPI schema to MCP tools
@@ -120,15 +157,15 @@ class NinjaMCP:
 
     def mount(self, router: Optional[NinjaAPI | Router] = None, mount_path: str = "/mcp") -> None:
         """
-        Mount the MCP server to **any** NinjaAPI app or Router.
+        Mount the MCP server to a Django Ninja API or Router.
 
-        There is no requirement that the FastAPI app or Router is the same as the one that the MCP
+        There is no requirement that the Ninja API or Router is the same as the one that the MCP
         server was created from.
 
         Args:
         ----
-            router: The FastAPI app or Router to mount the MCP server to. If not provided, the MCP
-                    server will be mounted to the FastAPI app.
+            router: The Ninja API or Router to mount the MCP server to. If not provided, the MCP
+                    server will be mounted to the Ninja API used to create the MCP server.
             mount_path: Path where the MCP server will be mounted
 
         """
@@ -142,29 +179,27 @@ class NinjaMCP:
             router = self.ninja
 
         # Build the base path correctly for the SSE transport
-        if isinstance(router, NinjaAPI):
-            base_path = router
-        elif isinstance(router, Router):
-            base_path = self.ninja.root_path + router.prefix
-        else:
-            raise ValueError(f"Invalid router type: {type(router)}")
+        base_path = ""
 
-        # Route for MCP connection
-        @router.get(mount_path, include_in_schema=False, operation_id="mcp_connection")
-        async def handle_mcp_connection(request: ASGIRequest):
-            async with sse_transport.connect_sse(request) as (reader, writer):
-                await self.server.run(
-                    reader,
-                    writer,
-                    self.server.create_initialization_options(notification_options=None, experimental_capabilities={}),
-                )
+        # Create the SSE transport
+        self.sse_transport = DjangoSseServerTransport(f"{base_path}{mount_path}/messages/", self.server)
 
-        sse_transport = DjangoSseServerTransport(f"{base_path}{mount_path}/messages/")
+        # Define the SSE connection endpoint
+        @router.event_source(mount_path, include_in_schema=False, operation_id="mcp_connection")
+        async def handle_mcp_connection(request):
+            """Handle SSE connection for MCP clients."""
+            async for event in self.sse_transport.connect_sse(request):
+                yield event
 
-        # Route for MCP messages
-        @router.post(f"{mount_path}/messages/", include_in_schema=False, operation_id="mcp_messages")
-        async def handle_post_message(request: ASGIRequest):
-            return await sse_transport.handle_post_message(request)
+        # Define the endpoint for receiving messages from clients
+        @router.post(
+            f"{mount_path}/messages/", include_in_schema=False, response=Dict[str, Any], operation_id="mcp_messages"
+        )
+        async def handle_post_message(
+            request, session_id: Query[UUID], message: Body[types.JSONRPCMessage]
+        ) -> HttpResponse:
+            """Handle POST messages from MCP clients."""
+            return await self.sse_transport.handle_post_message(session_id, message)
 
         logger.info(f"MCP server listening at {mount_path}")
 
@@ -233,17 +268,15 @@ class NinjaMCP:
         try:
             result = response.json()
             result_text = json.dumps(result, indent=2)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             if hasattr(response, "text"):
                 result_text = response.text
             else:
-                result_text = response.content
+                result_text = str(response.content)
 
-        # If not raising an exception, the MCP server will return the result as a regular text response,
-        if response.status_code != 200:
-            raise Exception(
-                f"Error calling {tool_name}. Status code: {response.status_code}. Response: {response.text}"
-            )
+        # Return an error message if the request was not successful
+        if response.status_code >= 400:
+            raise Exception(f"Error calling {tool_name}. Status code: {response.status_code}. Response: {result_text}")
 
         return [types.TextContent(type="text", text=result_text)]
 

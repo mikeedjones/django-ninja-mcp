@@ -1,143 +1,173 @@
+"""
+Django SSE Server Transport Module.
+
+This module implements a Server-Sent Events (SSE) transport layer for MCP servers
+integrated with Django and Django Ninja.
+
+Example usage:
+```python
+    # Create an SSE transport at an endpoint
+    sse_transport = DjangoSseServerTransport("/mcp/messages/")
+
+    @router.get("/mcp", include_in_schema=False)
+    async def handle_mcp_connection(request: HttpRequest):
+        return await sse_transport.connect_sse(request)
+
+    @router.post("/mcp/messages/", include_in_schema=False)
+    async def handle_post_message(request: HttpRequest):
+        return await sse_transport.handle_post_message(request)
+```
+
+The transport manages bidirectional communication:
+- Server-to-client via SSE streams
+- Client-to-server via POST requests containing JSON-RPC messages
+"""
+
+import asyncio
 import json
 import logging
-from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, Tuple
+from typing import Dict
 from uuid import UUID, uuid4
 
 import anyio
 import mcp.types as types
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from django.http import HttpResponse, JsonResponse
-from pydantic import ValidationError
+from anyio.streams.memory import MemoryObjectSendStream
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from mcp.server.lowlevel.server import Server
 
 logger = logging.getLogger(__name__)
 
 
 class DjangoSseServerTransport:
     """
-    SSE server transport for MCP that works with Django Ninja.
+    SSE server transport for MCP that works with Django and Django Ninja.
 
-    Provides two endpoints:
-    1. connect_sse() - Handles SSE connection establishment
-    2. handle_post_message() - Processes incoming messages from clients
+    This class provides two main functions:
+
+    1. connect_sse() - Sets up a new SSE stream to send server messages to the client
+    2. handle_post_message() - Receives incoming POST requests with client messages
+       that link to a previously established SSE session
     """
 
-    def __init__(self, endpoint_path: str) -> None:
+    _endpoint: str
+    _read_stream_writers: Dict[UUID, MemoryObjectSendStream[types.JSONRPCMessage | Exception]]
+    _write_tasks: Dict[UUID, asyncio.Task]
+
+    def __init__(self, endpoint: str, server: Server) -> None:
         """
-        Create a new SSE server transport.
+        Create a new SSE server transport for Django.
 
         Args:
         ----
-            endpoint_path: The URL path where clients should POST messages
+            endpoint: The endpoint path where client POST messages should be sent.
+                     This can be relative or absolute.
+            server: The MCP server instance that will handle the messages.
 
         """
-        self._endpoint = endpoint_path
+        super().__init__()
+        self._endpoint = endpoint
+        self._server = server
         self._read_stream_writers = {}
-        logger.debug(f"DjangoSseServerTransport initialized with endpoint: {endpoint_path}")
+        self._write_tasks = {}
+        logger.debug(f"DjangoSseServerTransport initialized with endpoint: {endpoint}")
 
-    @asynccontextmanager
-    async def connect_sse(
-        self, request
-    ) -> AsyncGenerator[Tuple[MemoryObjectReceiveStream, MemoryObjectSendStream], None]:
+    def connect_sse(self, request: HttpRequest) -> HttpResponse:
         """
-        Set up an SSE connection for a client.
+        Handle an incoming SSE connection request.
 
-        This method should be called from a Django Ninja endpoint that's
-        configured to use Daphne or another ASGI server.
+        This method sets up the SSE stream and returns the Django response that
+        will stream events to the client.
+
+        Args:
+        ----
+            request: The Django HttpRequest object
+
+        Returns:
+        -------
+            An HttpResponse that streams SSE events to the client
+
         """
-        # Create memory streams for communication
+        logger.debug("Setting up SSE connection")
+
+        # Create a unique session ID for this connection
+        session_id = uuid4()
+        channel_name = f"mcp-{session_id.hex}"
+
+        # Create streams for bidirectional communication
         read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
         write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
 
-        # Create a unique session ID and store the write stream
-        session_id = uuid4()
-        session_uri = f"{self._endpoint}?session_id={session_id.hex}"
+        # Store the writer for later use by POST handlers
         self._read_stream_writers[session_id] = read_stream_writer
-        logger.debug(f"Created new session with ID: {session_id}")
 
-        # Create streams for SSE events
-        sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream[Dict[str, Any]](0)
+        # Prepare the session URI that clients will use for POSTing messages
+        session_uri = f"{self._endpoint}?session_id={session_id.hex}"
+        logger.debug(f"Created new session with ID: {session_id}, channel: {channel_name}")
 
+        # Set up a task to forward messages from write_stream to the SSE channel
         async def sse_writer():
-            logger.debug("Starting SSE writer")
-            async with sse_stream_writer, write_stream_reader:
-                # Send the endpoint URL to the client
-                await sse_stream_writer.send({"event": "endpoint", "data": session_uri})
+            try:
+                logger.debug(f"Starting SSE writer for session {session_id}")
+                # Send the endpoint info as the first event
+                yield json.dumps({"event": "endpoint", "data": session_uri})
                 logger.debug(f"Sent endpoint event: {session_uri}")
 
-                # Forward messages to the client
-                async for message in write_stream_reader:
-                    logger.debug(f"Sending message via SSE: {message}")
-                    await sse_stream_writer.send(
-                        {
-                            "event": "message",
-                            "data": message.model_dump_json(by_alias=True, exclude_none=True),
-                        }
-                    )
+                # Then listen for messages and forward them as SSE events
+                async with write_stream_reader:
+                    async for message in write_stream_reader:
+                        logger.debug(f"Sending message via SSE: {message}")
+                        yield json.dumps(
+                            {"event": "message", "data": message.model_dump_json(by_alias=True, exclude_none=True)}
+                        )
+            except Exception as e:
+                logger.error(f"Error in SSE writer: {e}")
+            finally:
+                # Clean up when the connection is closed
+                if session_id in self._read_stream_writers:
+                    del self._read_stream_writers[session_id]
+                logger.debug(f"SSE writer for session {session_id} has ended")
 
-        # Set up the SSE response
-        async def sse_response_generator():
-            yield "event: connected\ndata: connected\n\n"
-            yield f"event: endpoint\ndata: {session_uri}\n\n"
+        # Start the MCP server with the streams
+        async def run_mcp_server():
+            try:
+                await self._server.run(read_stream, write_stream, self._server.create_initialization_options())
+            finally:
+                # Clean up when the server is done
+                if session_id in self._write_tasks:
+                    self._write_tasks[session_id].cancel()
+                    del self._write_tasks[session_id]
 
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(sse_writer)
+                await write_stream.aclose()
+                await read_stream.aclose()
 
-                async for event in sse_stream_reader:
-                    event_type = event.get("event", "message")
-                    data = event.get("data", "")
-                    if isinstance(data, dict):
-                        data = json.dumps(data)
+        # Start the asyncio task to run the MCP server
+        asyncio.create_task(run_mcp_server())
 
-                    yield f"event: {event_type}\ndata: {data}\n\n"
+        return sse_writer()
 
-        try:
-            # Start the SSE response in the background
-            response = HttpResponse(sse_response_generator(), content_type="text/event-stream")
-            response["Cache-Control"] = "no-cache"
-            response["Connection"] = "keep-alive"
-
-            # Yield the streams for the MCP server to use
-            yield (read_stream, write_stream)
-        finally:
-            # Clean up
-            if session_id in self._read_stream_writers:
-                del self._read_stream_writers[session_id]
-
-    async def handle_post_message(self, request, session_id: str):
+    async def handle_post_message(self, session_id: UUID, message: types.JSONRPCMessage) -> HttpResponse:
         """
-        Handle an incoming message from a client.
+        Handle an incoming POST message from a client.
 
-        This should be exposed as a Django Ninja API endpoint.
+        This method processes the JSON-RPC message and forwards it to the appropriate
+        session's read stream.
+
+        Args:
+        ----
+            request: The Django HttpRequest containing the client message
+
+        Returns:
+        -------
+            An HttpResponse indicating success or failure
+
         """
-        logger.debug("Handling POST message")
-
-        # Validate the session ID
-        try:
-            uuid_session_id = UUID(hex=session_id)
-            logger.debug(f"Parsed session ID: {uuid_session_id}")
-        except ValueError:
-            logger.warning(f"Received invalid session ID: {session_id}")
-            return JsonResponse({"error": "Invalid session ID"}, status=400)
-
-        # Find the associated stream writer
-        writer = self._read_stream_writers.get(uuid_session_id)
+        # Find the appropriate write stream for this session
+        writer = self._read_stream_writers.get(session_id)
         if not writer:
-            logger.warning(f"Could not find session for ID: {uuid_session_id}")
+            logger.warning(f"Could not find session for ID: {session_id}")
             return JsonResponse({"error": "Could not find session"}, status=404)
 
-        # Parse the message
-        try:
-            body = await request.body()
-            logger.debug(f"Received JSON: {body}")
-            message = types.JSONRPCMessage.model_validate_json(body)
-            logger.debug(f"Validated client message: {message}")
-        except ValidationError as err:
-            logger.error(f"Failed to parse message: {err}")
-            await writer.send(err)
-            return JsonResponse({"error": "Could not parse message"}, status=400)
-
-        # Send the message to the server
-        logger.debug(f"Sending message to writer: {message}")
         await writer.send(message)
-        return JsonResponse({"status": "accepted"}, status=202)
+
+        # Return success response
+        return JsonResponse({"status": "Accepted"}, status=202)
