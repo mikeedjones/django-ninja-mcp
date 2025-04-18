@@ -27,12 +27,6 @@ Ninja MCP is a library that automatically converts your Django Ninja API endpoin
 - **Filtering Options**: Include or exclude specific operations or tags
 - **Customizable Descriptions**: Control the level of detail in tool descriptions
 
-## Installation
-
-```bash
-pip install django-ninja-mcp
-```
-
 ## Quick Start
 
 Here's a simple example of integrating Ninja MCP with your Django project:
