@@ -32,7 +32,6 @@ dev = [
 line-length = 120
 indent-width = 4
 target-version = "py311"
-exclude = ["store/clients","docs","athena_models"]
 
 [tool.ruff.lint]
 select = ["F", "E", "W", "I001", "D"]
@@ -41,3 +40,6 @@ ignore = ["D203", "D212", "D10"]
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = 120
+
+[tool.hatch.build.targets.wheel]
+packages = ["ninja_mcp"]
