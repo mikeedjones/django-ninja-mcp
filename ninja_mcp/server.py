@@ -210,7 +210,7 @@ class NinjaMCP:
             tool_name: The name of the tool to execute
             arguments: The arguments for the tool
             operation_map: A mapping from tool names to operation details
-            client: Optional HTTP client to use (primarily for testing)
+            client: HTTP client to use
 
         Returns:
         -------
