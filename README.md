@@ -116,6 +116,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Further Reading
 
-- [MCP Documentation](https://docs.mcp.example.com/)
-- [Django Ninja Documentation](https://django-ninja.rest-framework.com/)
+- [MCP Documentation](https://modelcontextprotocol.io/)
+- [Django Ninja Documentation](https://django-ninja.dev/)
 - [Anthropic Claude Documentation](https://docs.anthropic.com/)
