@@ -14,7 +14,7 @@ requires-python = ">=3.10"
 dependencies = [
     "daphne>=4.1.2",
     "django-eventstream>=5.3.2",
-    "django-ninja>=1.4.1",
+    "django-ninja@git+https://github.com/mikeedjones/django-ninja.git@a1a5273",
     "mcp>=1.6.0",
     "pydantic>=2.5.3",
 ]
@@ -46,6 +46,9 @@ docstring-code-line-length = 120
 
 [tool.hatch.build.targets.wheel]
 packages = ["ninja_mcp"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project.urls]
 homepage = "https://github.com/mikeedjones/django-ninja-mcp"
