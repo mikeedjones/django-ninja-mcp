@@ -319,7 +319,7 @@ class NinjaMCP:
             return tools
 
         operations_by_tag: Dict[str, List[str]] = {}
-        for path, path_item in openapi_schema.get("paths", {}).items():
+        for _, path_item in openapi_schema.get("paths", {}).items():
             for method, operation in path_item.items():
                 if method not in ["get", "post", "put", "delete", "patch"]:
                     continue
