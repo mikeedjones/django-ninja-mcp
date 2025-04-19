@@ -138,6 +138,24 @@ wheels = [
 ]
 
 [[package]]
+name = "channels"
+version = "4.2.2"
+source = { registry = "https://gitlab.kfplc.com/api/v4/groups/4979/-/packages/pypi/simple" }
+dependencies = [
+    { name = "asgiref" },
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/16/d6/049f93c3c96a88265a52f85da91d2635279261bbd4a924b45caa43b8822e/channels-4.2.2.tar.gz", hash = "sha256:8d7208e48ab8fdb972aaeae8311ce920637d97656ffc7ae5eca4f93f84bcd9a0", size = 26647 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cc/bf/4799809715225d19928147d59fda0d3a4129da055b59a9b3e35aa6223f52/channels-4.2.2-py3-none-any.whl", hash = "sha256:ff36a6e1576cacf40bcdc615fa7aece7a709fc4fdd2dc87f2971f4061ffdaa81", size = 31048 },
+]
+
+[package.optional-dependencies]
+daphne = [
+    { name = "daphne" },
+]
+
+[[package]]
 name = "charset-normalizer"
 version = "3.4.1"
 source = { registry = "https://gitlab.kfplc.com/api/v4/groups/4979/-/packages/pypi/simple" }
@@ -406,6 +424,7 @@ name = "django-ninja-mcp"
 version = "0.0.1a2"
 source = { editable = "." }
 dependencies = [
+    { name = "channels", extra = ["daphne"] },
     { name = "daphne" },
     { name = "django-eventstream" },
     { name = "django-ninja" },
@@ -427,6 +446,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "channels", extras = ["daphne"], specifier = ">=4.2.2" },
     { name = "daphne", specifier = ">=4.1.2" },
     { name = "django-eventstream", specifier = ">=5.3.2" },
     { name = "django-ninja", git = "https://github.com/mikeedjones/django-ninja.git?rev=a1a5273" },

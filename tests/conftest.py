@@ -12,6 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "demo.settings")
 
 from .fixtures.types import *  # noqa
 from .fixtures.simple_app import *  # noqa
+from .fixtures.live_server import *  # noqa
 import django  # noqa
 
 django.setup()
