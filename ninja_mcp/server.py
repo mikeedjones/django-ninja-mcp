@@ -95,7 +95,6 @@ class NinjaMCP:
         self.operation_map: Dict[str, Dict[str, Any]]
         self.tools: List[types.Tool]
         self.server: Server
-        self.sse_transport: Optional[DjangoSseServerTransport] = None
 
         self.ninja = ninja
         self.name = name or getattr(self.ninja, "title", None) or "Ninja MCP"
@@ -109,7 +108,7 @@ class NinjaMCP:
         self._include_tags = include_tags
         self._exclude_tags = exclude_tags
 
-        self._http_client = http_client or httpx.AsyncClient()
+        self._http_client: AsyncClientProtocol | httpx.AsyncClient = http_client or httpx.AsyncClient()
 
         self.setup_server()
 
@@ -182,13 +181,13 @@ class NinjaMCP:
         base_path = ""
 
         # Create the SSE transport
-        self.sse_transport = DjangoSseServerTransport(f"{base_path}{mount_path}/messages/", self.server)
+        sse_transport = DjangoSseServerTransport(f"{base_path}{mount_path}/messages/", self.server)
 
         # Define the SSE connection endpoint
         @router.event_source(mount_path, include_in_schema=False, operation_id="mcp_connection")
         async def handle_mcp_connection(request):
             """Handle SSE connection for MCP clients."""
-            async for event in self.sse_transport.connect_sse(request):
+            async for event in sse_transport.connect_sse(request):
                 yield event
 
         # Define the endpoint for receiving messages from clients
@@ -197,7 +196,7 @@ class NinjaMCP:
             request, session_id: Path[UUID], message: Body[types.JSONRPCMessage]
         ) -> HttpResponse:
             """Handle POST messages from MCP clients."""
-            return await self.sse_transport.handle_post_message(session_id, message)
+            return await sse_transport.handle_post_message(session_id, message)
 
         logger.info(f"MCP server listening at {mount_path}")
 
