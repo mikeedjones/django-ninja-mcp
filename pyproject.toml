@@ -27,7 +27,7 @@ dev = [
     "pytest-django",
     "pytest-asyncio",
     "psycopg2-binary",
-    "mypy==1.7.1",
+    "mypy==1.15.0",
     "ruff==0.5.7",
     "django-stubs",
 ]
@@ -44,6 +44,11 @@ ignore = ["D203", "D212", "D10"]
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = 120
+
+[[tool.mypy.overrides]]
+module = ["channels.routing.*", "daphne.testing.*"]
+follow_untyped_imports = true
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["ninja_mcp"]

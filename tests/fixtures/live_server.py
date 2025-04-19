@@ -34,7 +34,7 @@ class ChannelsLiveServer:
 
     def __init__(self) -> None:
         for connection in connections.all():
-            if connection.vendor == "sqlite" and connection.is_in_memory_db():
+            if connection.vendor == "sqlite" and connection.is_in_memory_db():  # type: ignore[attr-defined]
                 raise ImproperlyConfigured("ChannelsLiveServer can not be used with in memory databases")
 
         self._live_server_modified_settings = modify_settings(ALLOWED_HOSTS={"append": self.host})
