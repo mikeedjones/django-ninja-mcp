@@ -25,7 +25,6 @@ The transport manages bidirectional communication:
 
 import asyncio
 import logging
-from typing import Dict, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -49,8 +48,8 @@ class DjangoSseServerTransport:
     """
 
     _endpoint: str
-    _read_stream_writers: Dict[UUID, MemoryObjectSendStream[types.JSONRPCMessage | Exception]]
-    _write_tasks: Dict[UUID, asyncio.Task]
+    _read_stream_writers: dict[UUID, MemoryObjectSendStream[types.JSONRPCMessage | Exception]]
+    _write_tasks: dict[UUID, asyncio.Task]
 
     def __init__(self, endpoint: str, server: Server) -> None:
         """
@@ -93,8 +92,8 @@ class DjangoSseServerTransport:
         channel_name = f"mcp-{session_id.hex}"
 
         # Create streams for bidirectional communication
-        read_stream_writer, read_stream = anyio.create_memory_object_stream[Union[types.JSONRPCMessage, Exception]](0)
-        write_stream, write_stream_reader = anyio.create_memory_object_stream[Union[types.JSONRPCMessage, Exception]](0)
+        read_stream_writer, read_stream = anyio.create_memory_object_stream[types.JSONRPCMessage | Exception](0)
+        write_stream, write_stream_reader = anyio.create_memory_object_stream[types.JSONRPCMessage | Exception](0)
 
         # Store the writer for later use by POST handlers
         self._read_stream_writers[session_id] = read_stream_writer

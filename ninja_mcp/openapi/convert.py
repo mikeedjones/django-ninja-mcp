@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import mcp.types as types
 
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 def convert_openapi_to_mcp_tools(
-    openapi_schema: Dict[str, Any],
+    openapi_schema: dict[str, Any],
     describe_all_responses: bool = False,
     describe_full_response_schema: bool = False,
-) -> Tuple[List[types.Tool], Dict[str, Dict[str, Any]]]:
+) -> tuple[list[types.Tool], dict[str, dict[str, Any]]]:
     """
     Convert OpenAPI operations to MCP tools.
 

@@ -34,7 +34,7 @@ This will make your Django Ninja API available as MCP tools at /api/mcp.
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -55,14 +55,14 @@ class NinjaMCP:
         self,
         ninja: NinjaAPI,
         base_url: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
+        name: str | None = None,
+        description: str | None = None,
         describe_all_responses: bool = False,
         describe_full_response_schema: bool = False,
-        include_operations: Optional[List[str]] = None,
-        exclude_operations: Optional[List[str]] = None,
-        include_tags: Optional[List[str]] = None,
-        exclude_tags: Optional[List[str]] = None,
+        include_operations: list[str] | None = None,
+        exclude_operations: list[str] | None = None,
+        include_tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
     ):
         """
         Create an MCP server from a Django Ninja API.
@@ -88,8 +88,8 @@ class NinjaMCP:
         if include_tags is not None and exclude_tags is not None:
             raise ValueError("Cannot specify both include_tags and exclude_tags")
 
-        self.operation_map: Dict[str, Dict[str, Any]]
-        self.tools: List[types.Tool]
+        self.operation_map: dict[str, dict[str, Any]]
+        self.tools: list[types.Tool]
         self.server: Server
 
         self.ninja = ninja
@@ -132,14 +132,14 @@ class NinjaMCP:
 
         # Register handlers for tools
         @mcp_server.list_tools()
-        async def handle_list_tools() -> List[types.Tool]:
+        async def handle_list_tools() -> list[types.Tool]:
             return self.tools
 
         # Register the tool call handler
         @mcp_server.call_tool()
         async def handle_call_tool(
-            name: str, arguments: Dict[str, Any]
-        ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+            name: str, arguments: dict[str, Any]
+        ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
             return await self._execute_api_tool(
                 client=self._http_client,
                 base_url=self._base_url or "",
@@ -150,7 +150,7 @@ class NinjaMCP:
 
         self.server = mcp_server
 
-    def mount(self, router: Optional[NinjaAPI | Router] = None, mount_path: str = "/mcp") -> None:
+    def mount(self, router: NinjaAPI | Router | None = None, mount_path: str = "/mcp") -> None:
         """
         Mount the MCP server to a Django Ninja API or Router.
 
@@ -184,7 +184,7 @@ class NinjaMCP:
                 yield event
 
         # Define the endpoint for receiving messages from clients
-        @router.post("/{session_id}", include_in_schema=False, response=Dict[str, Any], operation_id="mcp_messages")
+        @router.post("/{session_id}", include_in_schema=False, response=dict[str, Any], operation_id="mcp_messages")
         async def handle_post_message(
             request, session_id: Path[UUID], message: Body[types.JSONRPCMessage]
         ) -> HttpResponse:
@@ -198,9 +198,9 @@ class NinjaMCP:
         client: httpx.AsyncClient,
         base_url: str,
         tool_name: str,
-        arguments: Dict[str, Any],
-        operation_map: Dict[str, Dict[str, Any]],
-    ) -> List[Union[types.TextContent, types.ImageContent, types.EmbeddedResource]]:
+        arguments: dict[str, Any],
+        operation_map: dict[str, dict[str, Any]],
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
         """
         Execute an MCP tool by making an HTTP request to the corresponding API endpoint.
 
@@ -223,7 +223,7 @@ class NinjaMCP:
         operation = operation_map[tool_name]
         path: str = operation["path"]
         method: str = operation["method"]
-        parameters: List[Dict[str, Any]] = operation.get("parameters", [])
+        parameters: list[dict[str, Any]] = operation.get("parameters", [])
         arguments = arguments.copy() if arguments else {}  # Deep copy arguments to avoid mutating the original
 
         url = f"{base_url}{path}"
@@ -275,9 +275,9 @@ class NinjaMCP:
         client: httpx.AsyncClient,
         method: str,
         url: str,
-        query: Dict[str, Any],
-        headers: Dict[str, str],
-        body: Optional[Any],
+        query: dict[str, Any],
+        headers: dict[str, str],
+        body: Any | None,
     ) -> httpx.Response:
         """Make the actual HTTP request."""
         if method.lower() == "get":
@@ -293,7 +293,7 @@ class NinjaMCP:
         else:
             raise ValueError(f"Unsupported HTTP method: {method}")
 
-    def _filter_tools(self, tools: List[types.Tool], openapi_schema: Dict[str, Any]) -> List[types.Tool]:
+    def _filter_tools(self, tools: list[types.Tool], openapi_schema: dict[str, Any]) -> list[types.Tool]:
         """
         Filter tools based on operation IDs and tags.
 
@@ -315,7 +315,7 @@ class NinjaMCP:
         ):
             return tools
 
-        operations_by_tag: Dict[str, List[str]] = {}
+        operations_by_tag: dict[str, list[str]] = {}
         for _, path_item in openapi_schema.get("paths", {}).items():
             for method, operation in path_item.items():
                 if method not in ["get", "post", "put", "delete", "patch"]:
