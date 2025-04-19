@@ -79,7 +79,7 @@ INSTALLED_APPS = [
 
 With this setup, your Django Ninja API is now available as MCP tools at `/api/mcp`. LLM clients that support MCP can connect to this endpoint and use your API's functionality as tools.
 
-For example, with `mcp.cliet.sse` you can connect to the server and call the `/hello` endpoint:
+For example, with `mcp.client.sse.sse_client` you can connect to the server and call the `/hello` endpoint:
 
 ```python
 from mcp.client.session import ClientSession
