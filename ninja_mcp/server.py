@@ -46,7 +46,6 @@ from ninja.openapi import get_schema
 
 from .openapi.convert import convert_openapi_to_mcp_tools
 from .transport.sse import DjangoSseServerTransport
-from .types import AsyncClientProtocol, ResponseProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,6 @@ class NinjaMCP:
         description: Optional[str] = None,
         describe_all_responses: bool = False,
         describe_full_response_schema: bool = False,
-        http_client: Optional[AsyncClientProtocol] = None,
         include_operations: Optional[List[str]] = None,
         exclude_operations: Optional[List[str]] = None,
         include_tags: Optional[List[str]] = None,
@@ -77,8 +75,6 @@ class NinjaMCP:
             base_url: Base URL for API requests.
             describe_all_responses: Whether to include all possible response schemas in tool descriptions
             describe_full_response_schema: Whether to include full json schema for responses in tool descriptions
-            http_client: Optional HTTP client to use for API calls. If not provided,
-                a new httpx.AsyncClient will be created. This is primarily for testing purposes.
             include_operations: List of operation IDs to include as MCP tools. Cannot be used with exclude_operations.
             exclude_operations: List of operation IDs to exclude from MCP tools. Cannot be used with include_operations.
             include_tags: List of tags to include as MCP tools. Cannot be used with exclude_tags.
@@ -108,7 +104,7 @@ class NinjaMCP:
         self._include_tags = include_tags
         self._exclude_tags = exclude_tags
 
-        self._http_client: AsyncClientProtocol | httpx.AsyncClient = http_client or httpx.AsyncClient()
+        self._http_client = httpx.AsyncClient()
 
         self.setup_server()
 
@@ -202,7 +198,7 @@ class NinjaMCP:
 
     async def _execute_api_tool(
         self,
-        client: AsyncClientProtocol,
+        client: httpx.AsyncClient,
         base_url: str,
         tool_name: str,
         arguments: Dict[str, Any],
@@ -279,13 +275,13 @@ class NinjaMCP:
 
     async def _request(
         self,
-        client: AsyncClientProtocol,
+        client: httpx.AsyncClient,
         method: str,
         url: str,
         query: Dict[str, Any],
         headers: Dict[str, str],
         body: Optional[Any],
-    ) -> ResponseProtocol:
+    ) -> httpx.Response:
         """Make the actual HTTP request."""
         if method.lower() == "get":
             return await client.get(url, params=query, headers=headers)
