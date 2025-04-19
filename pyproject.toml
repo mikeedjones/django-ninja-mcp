@@ -12,7 +12,6 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "channels[daphne]>=4.2.2",
     "daphne>=4.1.2",
     "django-eventstream>=5.3.2",
     "django-ninja@git+https://github.com/mikeedjones/django-ninja.git@a1a5273",
@@ -22,6 +21,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "channels[daphne]>=4.2.2",
     "pytest",
     "pytest-cov",
     "pytest-django",
