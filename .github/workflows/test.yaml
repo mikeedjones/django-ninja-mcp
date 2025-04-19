@@ -58,7 +58,7 @@ jobs:
       - name: Run tests
         run: uv run coverage run -m pytest tests
       - name: Generate coverage report
-        run: uv run coverage report
+        run: uv run coverage html --omit=tests/*
       - name: Store coverage HTML
         uses: actions/upload-artifact@v4
         with:
