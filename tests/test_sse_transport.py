@@ -2,6 +2,8 @@ import re
 
 import pytest
 from mcp import types
+from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
 from ninja import NinjaAPI
 
 from ninja_mcp import NinjaMCP
@@ -68,3 +70,15 @@ async def test_message_sending(ninja_app_with_sse):
 
     # Verify the response
     assert response.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_sse_connection(channels_live_server):
+    """Test establishing an SSE connection."""
+    async with sse_client(f"{channels_live_server.url}/api/mcp") as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            tools = await session.list_tools()
+            assert tools is not None
+            assert len(tools.tools) == 1
+            assert tools.tools[0].name == "update_item"
