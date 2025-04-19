@@ -173,11 +173,8 @@ class NinjaMCP:
         if not router:
             router = self.ninja
 
-        # Build the base path correctly for the SSE transport
-        base_path = ""
-
         # Create the SSE transport
-        sse_transport = DjangoSseServerTransport(f"{base_path}{mount_path}/messages/", self.server)
+        sse_transport = DjangoSseServerTransport(f"{mount_path}/messages/", self.server)
 
         # Define the SSE connection endpoint
         @router.event_source(mount_path, include_in_schema=False, operation_id="mcp_connection")
