@@ -68,6 +68,13 @@ mcp_server.mount(api, mount_path="/mcp")
 urlpatterns = [
     path("api/", api.urls),
 ]
+
+# update your settings.py to include daphne for handling SSE
+INSTALLED_APPS = [
+    "daphne",
+    ...
+    "ninja",
+]
 ```
 
 With this setup, your Django Ninja API is now available as MCP tools at `/api/mcp`. LLM clients that support MCP can connect to this endpoint and use your API's functionality as tools.

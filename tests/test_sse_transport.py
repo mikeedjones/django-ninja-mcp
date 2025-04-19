@@ -79,3 +79,6 @@ async def test_sse_connection(channels_live_server):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
             tools = await session.list_tools()
+            assert tools is not None
+            assert len(tools.tools) == 1
+            assert tools.tools[0].name == "update_item"
