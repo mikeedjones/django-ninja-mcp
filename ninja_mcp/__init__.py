@@ -1,6 +1,4 @@
-"""
-Ninja-MCP: Automatic MCP server generator for Django Ninja applications.
-"""
+"""Ninja-MCP: Automatic MCP server generator for Django Ninja applications."""
 
 try:
     from importlib.metadata import version
