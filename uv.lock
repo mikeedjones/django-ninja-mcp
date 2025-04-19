@@ -407,8 +407,8 @@ wheels = [
 
 [[package]]
 name = "django-ninja-mcp"
-version = "0.1.0"
-source = { virtual = "." }
+version = "0.0.1a2"
+source = { editable = "." }
 dependencies = [
     { name = "daphne" },
     { name = "django-eventstream" },
