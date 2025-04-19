@@ -2,9 +2,15 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/django-ninja-mcp.svg)](https://pypi.org/project/django-ninja-mcp/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/django-ninja-mcp.svg)](https://pypi.org/project/django-ninja-mcp/)
-[![License](https://img.shields.io/github/license/mikeedjones/django-ninja-mcp.svg)](https://github.com/mikeedjones/django-ninja-mcp/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/mikeedjones/django-ninja-mcp.svg)](https://github.com/mikeedjones/django-ninja-mcp/LICENSE)
 
-Automatic Model Context Protocol (MCP) server generator for Django Ninja applications.
+Automatic Model Context Protocol (MCP) server generator for [Django Ninja](https://modelcontextprotocol.io/) applications. Huge credit to [FastAPI-MCP](https://github.com/tadata-org/fastapi_mcp) for the original idea and implementation.
+
+> [!WARNING]
+> **This is an early release.** The API is not stable and may change in the future. Please use with caution.
+
+> [!WARNING]
+> **This depends on an unmerged addition to Django Ninja.** The `django-ninja-mcp` package depends on a [change to Django Ninja that has not yet been merged](https://github.com/mikeedjones/django-ninja/tree/updated-sse) forked from [@rroblf01's PR.](https://github.com/vitalik/django-ninja/pull/1388).
 
 ## What is MCP?
 
@@ -110,25 +116,12 @@ admin_api = NinjaAPI(urls_namespace="admin")
 mcp_server.mount(admin_api, mount_path="/admin/mcp")
 ```
 
-
-## Requirements
-
-- Python 3.10+
-- Django
-- Django Ninja
-- httpx
-- mcp (Model Context Protocol Python library)
-
-## License
-
-[MIT License](LICENSE)
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Further Reading
 
-- [MCP Documentation](https://docs.mcp.example.com/)
-- [Django Ninja Documentation](https://django-ninja.rest-framework.com/)
+- [MCP Documentation](https://modelcontextprotocol.io/)
+- [Django Ninja Documentation](https://django-ninja.dev/)
 - [Anthropic Claude Documentation](https://docs.anthropic.com/)

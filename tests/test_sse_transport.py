@@ -43,12 +43,9 @@ async def test_sse_connection_establishment(ninja_app_with_sse):
 @pytest.mark.asyncio
 async def test_message_sending(ninja_app_with_sse):
     """Test sending a message via the SSE transport."""
-    async_mock_client = TestAsyncClient(ninja_app_with_sse)
-    mock_client = TestClient(ninja_app_with_sse)
-
     # Connect to the SSE endpoint
     events = []
-    async for event in mock_client.get("/mcp").content_stream:
+    async for event in TestClient(ninja_app_with_sse).get("/mcp").content_stream:
         events.append(event)
         if "endpoint" in event.decode("utf-8"):
             break
@@ -58,7 +55,7 @@ async def test_message_sending(ninja_app_with_sse):
     endpoint = re.search(r"(?<=data: )\S+", events[0].decode("utf-8")).group(0)
 
     # Send an initialization message
-    response = await async_mock_client.post(
+    response = await TestAsyncClient(ninja_app_with_sse).post(
         endpoint,
         data=types.JSONRPCRequest(
             id="init-1",

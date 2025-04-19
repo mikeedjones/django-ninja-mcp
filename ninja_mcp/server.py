@@ -46,7 +46,6 @@ from ninja.openapi import get_schema
 
 from .openapi.convert import convert_openapi_to_mcp_tools
 from .transport.sse import DjangoSseServerTransport
-from .types import AsyncClientProtocol, ResponseProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,6 @@ class NinjaMCP:
         description: Optional[str] = None,
         describe_all_responses: bool = False,
         describe_full_response_schema: bool = False,
-        http_client: Optional[AsyncClientProtocol] = None,
         include_operations: Optional[List[str]] = None,
         exclude_operations: Optional[List[str]] = None,
         include_tags: Optional[List[str]] = None,
@@ -77,8 +75,6 @@ class NinjaMCP:
             base_url: Base URL for API requests.
             describe_all_responses: Whether to include all possible response schemas in tool descriptions
             describe_full_response_schema: Whether to include full json schema for responses in tool descriptions
-            http_client: Optional HTTP client to use for API calls. If not provided,
-                a new httpx.AsyncClient will be created. This is primarily for testing purposes.
             include_operations: List of operation IDs to include as MCP tools. Cannot be used with exclude_operations.
             exclude_operations: List of operation IDs to exclude from MCP tools. Cannot be used with include_operations.
             include_tags: List of tags to include as MCP tools. Cannot be used with exclude_tags.
@@ -95,7 +91,6 @@ class NinjaMCP:
         self.operation_map: Dict[str, Dict[str, Any]]
         self.tools: List[types.Tool]
         self.server: Server
-        self.sse_transport: Optional[DjangoSseServerTransport] = None
 
         self.ninja = ninja
         self.name = name or getattr(self.ninja, "title", None) or "Ninja MCP"
@@ -109,7 +104,7 @@ class NinjaMCP:
         self._include_tags = include_tags
         self._exclude_tags = exclude_tags
 
-        self._http_client = http_client or httpx.AsyncClient()
+        self._http_client = httpx.AsyncClient()
 
         self.setup_server()
 
@@ -178,17 +173,14 @@ class NinjaMCP:
         if not router:
             router = self.ninja
 
-        # Build the base path correctly for the SSE transport
-        base_path = ""
-
         # Create the SSE transport
-        self.sse_transport = DjangoSseServerTransport(f"{base_path}{mount_path}/messages/", self.server)
+        sse_transport = DjangoSseServerTransport(f"{mount_path}/messages/", self.server)
 
         # Define the SSE connection endpoint
         @router.event_source(mount_path, include_in_schema=False, operation_id="mcp_connection")
         async def handle_mcp_connection(request):
             """Handle SSE connection for MCP clients."""
-            async for event in self.sse_transport.connect_sse(request):
+            async for event in sse_transport.connect_sse(request):
                 yield event
 
         # Define the endpoint for receiving messages from clients
@@ -197,13 +189,13 @@ class NinjaMCP:
             request, session_id: Path[UUID], message: Body[types.JSONRPCMessage]
         ) -> HttpResponse:
             """Handle POST messages from MCP clients."""
-            return await self.sse_transport.handle_post_message(session_id, message)
+            return await sse_transport.handle_post_message(session_id, message)
 
         logger.info(f"MCP server listening at {mount_path}")
 
     async def _execute_api_tool(
         self,
-        client: AsyncClientProtocol,
+        client: httpx.AsyncClient,
         base_url: str,
         tool_name: str,
         arguments: Dict[str, Any],
@@ -280,13 +272,13 @@ class NinjaMCP:
 
     async def _request(
         self,
-        client: AsyncClientProtocol,
+        client: httpx.AsyncClient,
         method: str,
         url: str,
         query: Dict[str, Any],
         headers: Dict[str, str],
         body: Optional[Any],
-    ) -> ResponseProtocol:
+    ) -> httpx.Response:
         """Make the actual HTTP request."""
         if method.lower() == "get":
             return await client.get(url, params=query, headers=headers)
@@ -324,7 +316,7 @@ class NinjaMCP:
             return tools
 
         operations_by_tag: Dict[str, List[str]] = {}
-        for path, path_item in openapi_schema.get("paths", {}).items():
+        for _, path_item in openapi_schema.get("paths", {}).items():
             for method, operation in path_item.items():
                 if method not in ["get", "post", "put", "delete", "patch"]:
                     continue

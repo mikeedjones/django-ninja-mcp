@@ -1,3 +1,4 @@
+import pytest
 from mcp.server.lowlevel.server import Server
 from ninja import NinjaAPI
 
@@ -41,29 +42,21 @@ def test_default_values(simple_ninja_app: NinjaAPI):
     assert any(route.pattern.regex.match("mcp") for route in routes), "MCP server mount point not found in app routes"
 
 
-def test_normalize_paths(simple_ninja_app: NinjaAPI):
+@pytest.mark.parametrize(
+    "mount_path,expected_path",
+    [
+        ("test-mcp", "test-mcp"),  # No leading slash
+        ("/test-mcp2/", "test-mcp2"),  # With leading and trailing slashes
+    ],
+)
+def test_normalize_paths(simple_ninja_app: NinjaAPI, mount_path: str, expected_path: str):
     """Test that mount paths are normalized correctly."""
     mcp = NinjaMCP(simple_ninja_app, base_url="http://localhost:8000")
 
-    # Test with path without leading slash
-    mount_path = "test-mcp"
+    # Mount with the test path
     mcp.mount(mount_path=mount_path)
 
-    routes, _, _ = simple_ninja_app.urls
     # Check that the route was added with a normalized path
     assert any(
-        route.pattern.regex.match("test-mcp") for route in routes
-    ), "Normalized mount path not found in app routes"
-
-    # Create a new MCP server
-    mcp2 = NinjaMCP(simple_ninja_app, base_url="http://localhost:8000")
-
-    # Test with path with trailing slash
-    mount_path = "/test-mcp2/"
-    mcp2.mount(mount_path=mount_path)
-
-    routes, _, _ = simple_ninja_app.urls
-    # Check that the route was added with a normalized path
-    assert any(
-        route.pattern.regex.match("test-mcp2") for route in routes
-    ), "Normalized mount path not found in app routes"
+        route.pattern.regex.match(expected_path) for route in simple_ninja_app.urls[0]
+    ), f"Normalized mount path {expected_path} not found in app routes"

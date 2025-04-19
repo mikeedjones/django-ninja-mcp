@@ -19,8 +19,8 @@ def lowlevel_server_simple_app(simple_ninja_app: NinjaAPI) -> Server:
         name="Test MCP Server",
         description="Test description",
         base_url="",
-        http_client=TestAsyncClient(simple_ninja_app),
     )
+    mcp._http_client = TestAsyncClient(simple_ninja_app)  # type: ignore
     return mcp.server
 
 

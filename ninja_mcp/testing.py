@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator, Iterator
 from json import loads as json_loads
 from typing import Any, Callable, Dict, Optional, Union
 from unittest.mock import Mock
@@ -80,13 +81,13 @@ class NinjaMCPClientBase(NinjaClientBase):
 
 
 class NinjaResponse:
-    content_stream = None
+    content_stream: Optional[Union[AsyncIterator[bytes], Iterator[bytes]]] = None
 
     def __init__(self, http_response: Union[HttpResponse, StreamingHttpResponse]):
         self._response = http_response
         self.status_code = http_response.status_code
         self.streaming = http_response.streaming
-        if self.streaming:
+        if self.streaming and isinstance(http_response, StreamingHttpResponse):
             self.content_stream = http_response.streaming_content
         else:
             self.content = http_response.content  # type: ignore[union-attr]

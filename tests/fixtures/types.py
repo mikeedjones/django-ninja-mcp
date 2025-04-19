@@ -6,16 +6,10 @@ from uuid import UUID
 from ninja import Field, Schema
 
 
-class PaginationA(Schema):
-    skip: Annotated[Optional[int], Field(description="Number of items to skip")] = None
-    limit: Annotated[Optional[int], Field(description="Max number of items to return")] = None
-    sort_by: Annotated[Optional[str], Field(description="Field to sort by")] = None
-
-
 class Pagination(Schema):
-    skip: int = 0
-    limit: int = 10
-    sort_by: str = None
+    skip: Annotated[int, Field(description="Number of items to skip")] = 0
+    limit: Annotated[int, Field(description="Max number of items to return")] = 10
+    sort_by: Annotated[Optional[str], Field(description="Field to sort by")] = None
 
 
 class ItemId(Schema):
