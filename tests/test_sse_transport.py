@@ -82,3 +82,6 @@ async def test_sse_connection(channels_live_server):
             assert tools is not None
             assert len(tools.tools) == 1
             assert tools.tools[0].name == "update_item"
+
+            prompts = await session.list_prompts()
+            assert prompts.prompts == []
