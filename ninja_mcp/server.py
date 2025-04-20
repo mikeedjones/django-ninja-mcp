@@ -141,11 +141,8 @@ class NinjaMCP:
             name: str, arguments: dict[str, Any]
         ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
             return await self._execute_api_tool(
-                client=self._http_client,
-                base_url=self._base_url or "",
                 tool_name=name,
                 arguments=arguments,
-                operation_map=self.operation_map,
             )
 
         self.server = mcp_server
@@ -195,18 +192,14 @@ class NinjaMCP:
 
     async def _execute_api_tool(
         self,
-        client: httpx.AsyncClient,
-        base_url: str,
         tool_name: str,
         arguments: dict[str, Any],
-        operation_map: dict[str, dict[str, Any]],
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
         """
         Execute an MCP tool by making an HTTP request to the corresponding API endpoint.
 
         Args:
         ----
-            base_url: The base URL for the API
             tool_name: The name of the tool to execute
             arguments: The arguments for the tool
             operation_map: A mapping from tool names to operation details
@@ -226,7 +219,7 @@ class NinjaMCP:
         parameters: list[dict[str, Any]] = operation.get("parameters", [])
         arguments = arguments.copy() if arguments else {}  # Deep copy arguments to avoid mutating the original
 
-        url = f"{base_url}{path}"
+        url = f"{self._base_url}{path}"
         for param in parameters:
             if param.get("in") == "path" and param.get("name") in arguments:
                 param_name = param.get("name", None)
