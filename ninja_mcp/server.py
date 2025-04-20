@@ -34,6 +34,8 @@ This will make your Django Ninja API available as MCP tools at /api/mcp.
 
 import json
 import logging
+from dataclasses import dataclass
+from functools import partial
 from typing import Any
 from uuid import UUID
 
@@ -44,10 +46,24 @@ from mcp.server.lowlevel.server import Server
 from ninja import Body, NinjaAPI, Path, Router
 from ninja.openapi import get_schema
 
-from .openapi.convert import convert_openapi_to_mcp_tools
+from .openapi.convert import HttpMethod, convert_openapi_to_mcp_tools
 from .transport.sse import DjangoSseServerTransport
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Parameter:
+    location: str
+    name: str
+
+
+@dataclass
+class ProcessedParameters:
+    url: str
+    query: dict[str, Any]
+    headers: dict[str, str]
+    body: dict[str, Any] | None
 
 
 class NinjaMCP:
@@ -115,9 +131,18 @@ class NinjaMCP:
             describe_all_responses=self._describe_all_responses,
             describe_full_response_schema=self._describe_full_response_schema,
         )
-
         # Filter tools based on operation IDs and tags
         self.tools = self._filter_tools(all_tools, openapi_schema)
+
+        # all_prompts, self.prompt_map = convert_openapi_to_mcp_prompts(
+        #     openapi_schema,
+        #     describe_all_responses=self._describe_all_responses,
+        #     describe_full_response_schema=self._describe_full_response_schema,
+        #     is_prompt=True,
+        # )
+
+        # Filter prompts based on operation IDs and tags
+        # self.prompts = self._filter_prompts(all_tools, openapi_schema)
 
         # Normalize base URL
         if self._base_url.endswith("/"):
@@ -136,10 +161,15 @@ class NinjaMCP:
         async def handle_call_tool(
             name: str, arguments: dict[str, Any]
         ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-            return await self._execute_api_tool(
-                tool_name=name,
-                arguments=arguments,
-            )
+            return await self._execute_api_tool(tool_name=name, arguments=arguments)
+
+        @mcp_server.list_prompts()
+        async def handle_list_prompts() -> list[types.Prompt]:
+            return self.prompts
+
+        @mcp_server.get_prompt()
+        async def handle_get_prompt(name: str, arguments: dict[str, Any]) -> types.GetPromptResult:
+            return await self._get_prompt(name=name, arguments=arguments)
 
         self.server = mcp_server
 
@@ -206,43 +236,38 @@ class NinjaMCP:
             The result as MCP content types
 
         """
-        if tool_name not in self.operation_map:
+        try:
+            operation = self.operation_map[tool_name]
+        except KeyError:
             raise Exception(f"Unknown tool: {tool_name}")
 
-        operation = self.operation_map[tool_name]
-        path: str = operation["path"]
-        method: str = operation["method"]
-        parameters: list[dict[str, Any]] = operation.get("parameters", [])
+        parameters: list[dict[str, Any]] = operation.parameters
         arguments = arguments.copy() if arguments else {}  # Deep copy arguments to avoid mutating the original
 
-        url = f"{self._base_url}{path}"
-        for param in parameters:
-            if param.get("in") == "path" and param.get("name") in arguments:
-                param_name = param.get("name", None)
-                if param_name is None:
-                    raise ValueError(f"Parameter name is None for parameter: {param}")
-                url = url.replace(f"{{{param_name}}}", str(arguments.pop(param_name)))
-
+        url = f"{self._base_url}{operation.path}"
         query = {}
-        for param in parameters:
-            if param.get("in") == "query" and param.get("name") in arguments:
-                param_name = param.get("name", None)
-                if param_name is None:
-                    raise ValueError(f"Parameter name is None for parameter: {param}")
-                query[param_name] = arguments.pop(param_name)
-
         headers = {}
         for param in parameters:
-            if param.get("in") == "header" and param.get("name") in arguments:
-                param_name = param.get("name", None)
-                if param_name is None:
-                    raise ValueError(f"Parameter name is None for parameter: {param}")
-                headers[param_name] = arguments.pop(param_name)
+            param_name = param.get("name", None)
+            if param_name is None:
+                raise ValueError(f"Parameter name is None for parameter: {param}")
+
+            param_location = param["in"]
+            if param_name in arguments:
+                match param_location:
+                    case "path":
+                        url = url.replace(f"{{{param_name}}}", str(arguments.pop(param_name)))
+                    case "query":
+                        query[param_name] = arguments.pop(param_name)
+                    case "header":
+                        headers[param_name] = arguments.pop(param_name)
+                    case _:
+                        raise ValueError(f"Unsupported parameter location: {param_location}")
 
         body = arguments if arguments else None
 
-        logger.debug(f"Making {method.upper()} request to {url}")
-        response = await self._request(self._http_client, method, url, query, headers, body)
+        logger.debug(f"Making {operation.method} request to {url}")
+        response = await self._request(operation.method, url, query, headers, body)
 
         try:
             result = response.json()
@@ -260,27 +285,21 @@ class NinjaMCP:
         return [types.TextContent(type="text", text=result_text)]
 
     async def _request(
-        self,
-        client: httpx.AsyncClient,
-        method: str,
-        url: str,
-        query: dict[str, Any],
-        headers: dict[str, str],
-        body: Any | None,
+        self, method: HttpMethod, url: str, query: dict[str, Any], headers: dict[str, str], body: Any | None
     ) -> httpx.Response:
         """Make the actual HTTP request."""
-        if method.lower() == "get":
-            return await client.get(url, params=query, headers=headers)
-        elif method.lower() == "post":
-            return await client.post(url, params=query, headers=headers, json=body)
-        elif method.lower() == "put":
-            return await client.put(url, params=query, headers=headers, json=body)
-        elif method.lower() == "delete":
-            return await client.delete(url, params=query, headers=headers)
-        elif method.lower() == "patch":
-            return await client.patch(url, params=query, headers=headers, json=body)
-        else:
+        http_methods = {
+            HttpMethod.GET: partial(self._http_client.get, url, params=query, headers=headers),
+            HttpMethod.DELETE: partial(self._http_client.delete, url, params=query, headers=headers),
+            HttpMethod.POST: partial(self._http_client.post, url, params=query, headers=headers, json=body),
+            HttpMethod.PUT: partial(self._http_client.put, url, params=query, headers=headers, json=body),
+            HttpMethod.PATCH: partial(self._http_client.patch, url, params=query, headers=headers, json=body),
+        }
+
+        if method not in http_methods:
             raise ValueError(f"Unsupported HTTP method: {method}")
+
+        return await http_methods[method]()
 
     def _filter_tools(self, tools: list[types.Tool], openapi_schema: dict[str, Any]) -> list[types.Tool]:
         """
@@ -348,3 +367,24 @@ class NinjaMCP:
             }
 
         return filtered_tools
+
+
+def extract_path_parameters(parameters, arguments, url):
+    for param in parameters:
+        if param.get("in") == "path" and param.get("name") in arguments:
+            param_name = param.get("name")
+            if param_name is None:
+                raise ValueError(f"Parameter name is None for parameter: {param}")
+            url = url.replace(f"{{{param_name}}}", str(arguments.pop(param_name)))
+    return url
+
+
+def extract_dict_parameters(parameters, arguments, location_type):
+    result = {}
+    for param in parameters:
+        if param.get("in") == location_type and param.get("name") in arguments:
+            param_name = param.get("name")
+            if param_name is None:
+                raise ValueError(f"Parameter name is None for parameter: {param}")
+            result[param_name] = arguments.pop(param_name)
+    return result
