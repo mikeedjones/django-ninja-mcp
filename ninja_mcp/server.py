@@ -88,10 +88,6 @@ class NinjaMCP:
         if include_tags is not None and exclude_tags is not None:
             raise ValueError("Cannot specify both include_tags and exclude_tags")
 
-        self.operation_map: dict[str, dict[str, Any]]
-        self.tools: list[types.Tool]
-        self.server: Server
-
         self.ninja = ninja
         self.name = name or getattr(self.ninja, "title", None) or "Ninja MCP"
         self.description = description or getattr(self.ninja, "description", None)
