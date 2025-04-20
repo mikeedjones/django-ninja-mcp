@@ -1,5 +1,7 @@
 import json
 import logging
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 import mcp.types as types
@@ -14,11 +16,27 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
+class HttpMethod(StrEnum):
+    GET = "get"
+    DELETE = "delete"
+    POST = "post"
+    PUT = "put"
+    PATCH = "patch"
+
+
+@dataclass
+class Operation:
+    path: str
+    method: HttpMethod
+    parameters: list[dict[str, Any]] = field(default_factory=list)
+    request_body: dict[str, Any] = field(default_factory=dict)
+
+
 def convert_openapi_to_mcp_tools(
     openapi_schema: dict[str, Any],
     describe_all_responses: bool = False,
     describe_full_response_schema: bool = False,
-) -> tuple[list[types.Tool], dict[str, dict[str, Any]]]:
+) -> tuple[list[types.Tool], dict[str, Operation]]:
     """
     Convert OpenAPI operations to MCP tools.
 
@@ -56,12 +74,12 @@ def convert_openapi_to_mcp_tools(
                 continue
 
             # Save operation details for later HTTP calls
-            operation_map[operation_id] = {
-                "path": path,
-                "method": method,
-                "parameters": operation.get("parameters", []),
-                "request_body": operation.get("requestBody", {}),
-            }
+            operation_map[operation_id] = Operation(
+                path=path,
+                method=HttpMethod(method),
+                parameters=operation.get("parameters", []),
+                request_body=operation.get("requestBody", {}),
+            )
 
             summary = operation.get("summary", "")
             description = operation.get("description", "")
