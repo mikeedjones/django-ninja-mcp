@@ -270,8 +270,7 @@ class NinjaMCP:
         response = await self._request(operation.method, url, query, headers, body)
 
         try:
-            result = response.json()
-            result_text = json.dumps(result, indent=2)
+            result_text = json.dumps(response.json(), indent=2)
         except (json.JSONDecodeError, AttributeError):
             if hasattr(response, "text"):
                 result_text = response.text
