@@ -210,10 +210,10 @@ class NinjaMCP:
             The result as MCP content types
 
         """
-        if tool_name not in operation_map:
+        if tool_name not in self.operation_map:
             raise Exception(f"Unknown tool: {tool_name}")
 
-        operation = operation_map[tool_name]
+        operation = self.operation_map[tool_name]
         path: str = operation["path"]
         method: str = operation["method"]
         parameters: list[dict[str, Any]] = operation.get("parameters", [])
@@ -246,7 +246,7 @@ class NinjaMCP:
         body = arguments if arguments else None
 
         logger.debug(f"Making {method.upper()} request to {url}")
-        response = await self._request(client, method, url, query, headers, body)
+        response = await self._request(self._http_client, method, url, query, headers, body)
 
         try:
             result = response.json()
