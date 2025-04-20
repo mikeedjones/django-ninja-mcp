@@ -1,7 +1,7 @@
-from typing import Any, Dict
+from typing import Any
 
 
-def get_single_param_type_from_schema(param_schema: Dict[str, Any]) -> str:
+def get_single_param_type_from_schema(param_schema: dict[str, Any]) -> str:
     """Get the type of a parameter from the schema if the schema is a union type, return the first type."""
     if "anyOf" in param_schema:
         types = {schema.get("type") for schema in param_schema["anyOf"] if schema.get("type")}
@@ -13,7 +13,7 @@ def get_single_param_type_from_schema(param_schema: Dict[str, Any]) -> str:
     return param_schema.get("type", "string")
 
 
-def resolve_schema_references(schema_part: Dict[str, Any], reference_schema: Dict[str, Any]) -> Dict[str, Any]:
+def resolve_schema_references(schema_part: dict[str, Any], reference_schema: dict[str, Any]) -> dict[str, Any]:
     """
     Resolve schema references in OpenAPI schemas.
 
@@ -57,7 +57,7 @@ def resolve_schema_references(schema_part: Dict[str, Any], reference_schema: Dic
     return schema_part
 
 
-def clean_schema_for_display(schema: Dict[str, Any]) -> Dict[str, Any]:
+def clean_schema_for_display(schema: dict[str, Any]) -> dict[str, Any]:
     """
     Clean up a schema for display by removing internal fields.
 
@@ -103,7 +103,7 @@ def clean_schema_for_display(schema: Dict[str, Any]) -> Dict[str, Any]:
     return schema
 
 
-def generate_example_from_schema(schema: Dict[str, Any]) -> Any:
+def generate_example_from_schema(schema: dict[str, Any]) -> Any:
     """
     Generate a simple example response from a JSON schema.
 

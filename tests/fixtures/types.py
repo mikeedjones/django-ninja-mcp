@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any
 from uuid import UUID
 
 from ninja import Field, Schema
@@ -9,7 +9,7 @@ from ninja import Field, Schema
 class Pagination(Schema):
     skip: Annotated[int, Field(description="Number of items to skip")] = 0
     limit: Annotated[int, Field(description="Max number of items to return")] = 10
-    sort_by: Annotated[Optional[str], Field(description="Field to sort by")] = None
+    sort_by: Annotated[str | None, Field(description="Field to sort by")] = None
 
 
 class ItemId(Schema):
@@ -22,9 +22,9 @@ class ItemId(Schema):
 class Item(Schema):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     price: float
-    tags: List[str] = []
+    tags: list[str] = []
 
 
 class OrderStatus(str, Enum):
@@ -54,12 +54,12 @@ class ProductCategory(str, Enum):
 
 class ProductVariant(Schema):
     sku: str = Field(..., description="Stock keeping unit code")
-    color: Optional[str] = Field(None, description="Color variant")
-    size: Optional[str] = Field(None, description="Size variant")
-    weight: Optional[float] = Field(None, description="Weight in kg", gt=0)
-    dimensions: Optional[Dict[str, float]] = Field(None, description="Dimensions in cm (length, width, height)")
+    color: str | None = Field(None, description="Color variant")
+    size: str | None = Field(None, description="Size variant")
+    weight: float | None = Field(None, description="Weight in kg", gt=0)
+    dimensions: dict[str, float] | None = Field(None, description="Dimensions in cm (length, width, height)")
     in_stock: bool = Field(True, description="Whether this variant is in stock")
-    stock_count: Optional[int] = Field(None, description="Number of items in stock", ge=0)
+    stock_count: int | None = Field(None, description="Number of items in stock", ge=0)
 
 
 class Address(Schema):
@@ -81,14 +81,14 @@ class Customer(Schema):
     id: UUID
     email: str
     full_name: str
-    phone: Optional[str] = Field(None, min_length=10, max_length=15)
+    phone: str | None = Field(None, min_length=10, max_length=15)
     tier: CustomerTier = CustomerTier.STANDARD
-    addresses: List[Address] = []
+    addresses: list[Address] = []
     is_active: bool = True
     created_at: datetime
-    last_login: Optional[datetime] = None
-    preferences: Dict[str, Any] = {}
-    consent: Dict[str, bool] = {}
+    last_login: datetime | None = None
+    preferences: dict[str, Any] = {}
+    consent: dict[str, bool] = {}
 
 
 class Product(Schema):
@@ -97,22 +97,22 @@ class Product(Schema):
     description: str
     category: ProductCategory
     price: float = Field(..., gt=0)
-    discount_percent: Optional[float] = Field(None, ge=0, le=100)
-    tax_rate: Optional[float] = Field(None, ge=0, le=100)
-    variants: List[ProductVariant] = []
-    tags: List[str] = []
-    image_urls: List[str] = []
-    rating: Optional[float] = Field(None, ge=0, le=5)
+    discount_percent: float | None = Field(None, ge=0, le=100)
+    tax_rate: float | None = Field(None, ge=0, le=100)
+    variants: list[ProductVariant] = []
+    tags: list[str] = []
+    image_urls: list[str] = []
+    rating: float | None = Field(None, ge=0, le=5)
     review_count: int = Field(0, ge=0)
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
     is_available: bool = True
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
 
 class OrderItem(Schema):
     product_id: UUID
-    variant_sku: Optional[str] = None
+    variant_sku: str | None = None
     quantity: int = Field(..., gt=0)
     unit_price: float
     discount_amount: float = 0
@@ -121,20 +121,20 @@ class OrderItem(Schema):
 
 class PaymentDetails(Schema):
     method: PaymentMethod
-    transaction_id: Optional[str] = None
+    transaction_id: str | None = None
     status: str
     amount: float
     currency: str = "USD"
-    paid_at: Optional[datetime] = None
+    paid_at: datetime | None = None
 
 
 class OrderRequest(Schema):
     customer_id: UUID
-    items: List[OrderItem]
+    items: list[OrderItem]
     shipping_address_id: UUID
-    billing_address_id: Optional[UUID] = None
+    billing_address_id: UUID | None = None
     payment_method: PaymentMethod
-    notes: Optional[str] = None
+    notes: str | None = None
     use_loyalty_points: bool = False
 
 
@@ -142,7 +142,7 @@ class OrderResponse(Schema):
     id: UUID
     customer_id: UUID
     status: OrderStatus = OrderStatus.PENDING
-    items: List[OrderItem]
+    items: list[OrderItem]
     shipping_address: Address
     billing_address: Address
     payment: PaymentDetails
@@ -151,16 +151,16 @@ class OrderResponse(Schema):
     tax_amount: float
     discount_amount: float
     total_amount: float
-    tracking_number: Optional[str] = None
-    estimated_delivery: Optional[date] = None
+    tracking_number: str | None = None
+    estimated_delivery: date | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    notes: Optional[str] = None
-    metadata: Dict[str, Any] = {}
+    updated_at: datetime | None = None
+    notes: str | None = None
+    metadata: dict[str, Any] = {}
 
 
 class PaginatedResponse(Schema):
-    items: List[Any]
+    items: list[Any]
     total: int
     page: int
     size: int
@@ -170,4 +170,4 @@ class PaginatedResponse(Schema):
 class ErrorResponse(Schema):
     status_code: int
     message: str
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None

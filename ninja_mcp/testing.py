@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator, Iterator
 from json import loads as json_loads
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable
 from unittest.mock import Mock
 from urllib.parse import urljoin
 
@@ -10,7 +10,7 @@ from ninja.responses import Response as HttpResponse
 from ninja.testing.client import NinjaClientBase
 
 
-def build_absolute_uri(location: Optional[str] = None) -> str:
+def build_absolute_uri(location: str | None = None) -> str:
     base = "http://testlocation/"
 
     if location:
@@ -24,7 +24,7 @@ def build_absolute_uri(location: Optional[str] = None) -> str:
 class NinjaMCPClientBase(NinjaClientBase):
     __test__ = False  # <- skip pytest
 
-    def _build_request(self, method: str, path: str, data: Dict, request_params: Any) -> Mock:
+    def _build_request(self, method: str, path: str, data: dict, request_params: Any) -> Mock:
         request = Mock(spec=HttpRequest)
         request.method = method
         request.path = path
@@ -81,9 +81,9 @@ class NinjaMCPClientBase(NinjaClientBase):
 
 
 class NinjaResponse:
-    content_stream: Optional[Union[AsyncIterator[bytes], Iterator[bytes]]] = None
+    content_stream: AsyncIterator[bytes] | Iterator[bytes] | None = None
 
-    def __init__(self, http_response: Union[HttpResponse, StreamingHttpResponse]):
+    def __init__(self, http_response: HttpResponse | StreamingHttpResponse):
         self._response = http_response
         self.status_code = http_response.status_code
         self.streaming = http_response.streaming
@@ -110,10 +110,10 @@ class NinjaResponse:
 
 
 class TestAsyncClient(NinjaMCPClientBase):
-    async def _call(self, func: Callable, request: Mock, kwargs: Dict) -> "NinjaResponse":
+    async def _call(self, func: Callable, request: Mock, kwargs: dict) -> "NinjaResponse":
         return NinjaResponse(await func(request, **kwargs))
 
 
 class TestClient(NinjaMCPClientBase):
-    def _call(self, func: Callable, request: Mock, kwargs: Dict) -> "NinjaResponse":
+    def _call(self, func: Callable, request: Mock, kwargs: dict) -> "NinjaResponse":
         return NinjaResponse(func(request, **kwargs))

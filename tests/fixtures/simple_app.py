@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 from ninja import Body, NinjaAPI, Path, Query
 from ninja.errors import HttpError
@@ -33,8 +31,8 @@ def simple_ninja_app() -> NinjaAPI:
         ),
     ]
 
-    @app.get("/items", response=List[Item], tags=["items"], operation_id="list_items")
-    async def list_items(request, pagination: Query[Pagination]) -> List[Item]:
+    @app.get("/items", response=list[Item], tags=["items"], operation_id="list_items")
+    async def list_items(request, pagination: Query[Pagination]) -> list[Item]:
         """List all items with pagination and sorting options."""
         return items[pagination.skip : pagination.skip + pagination.limit]
 
