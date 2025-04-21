@@ -133,16 +133,7 @@ class NinjaMCP:
         )
         # Filter tools based on operation IDs and tags
         self.tools = self._filter_tools(all_tools, openapi_schema)
-
-        # all_prompts, self.prompt_map = convert_openapi_to_mcp_prompts(
-        #     openapi_schema,
-        #     describe_all_responses=self._describe_all_responses,
-        #     describe_full_response_schema=self._describe_full_response_schema,
-        #     is_prompt=True,
-        # )
-
-        # Filter prompts based on operation IDs and tags
-        # self.prompts = self._filter_prompts(all_tools, openapi_schema)
+        self.prompts = []
 
         # Normalize base URL
         if self._base_url.endswith("/"):
@@ -166,10 +157,6 @@ class NinjaMCP:
         @mcp_server.list_prompts()
         async def handle_list_prompts() -> list[types.Prompt]:
             return self.prompts
-
-        @mcp_server.get_prompt()
-        async def handle_get_prompt(name: str, arguments: dict[str, Any]) -> types.GetPromptResult:
-            return await self._get_prompt(name=name, arguments=arguments)
 
         self.server = mcp_server
 
