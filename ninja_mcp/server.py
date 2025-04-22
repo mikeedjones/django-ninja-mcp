@@ -36,7 +36,7 @@ import json
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 import httpx
@@ -133,7 +133,7 @@ class NinjaMCP:
         )
         # Filter tools based on operation IDs and tags
         self.tools = self._filter_tools(all_tools, openapi_schema)
-        self.prompts = []
+        self.prompts: str[str, types.Prompt] = {}
 
         # Normalize base URL
         if self._base_url.endswith("/"):
@@ -156,7 +156,7 @@ class NinjaMCP:
 
         @mcp_server.list_prompts()
         async def handle_list_prompts() -> list[types.Prompt]:
-            return self.prompts
+            return []  # list(self.prompts.values())
 
         self.server = mcp_server
 
@@ -354,23 +354,56 @@ class NinjaMCP:
 
         return filtered_tools
 
+    def prompt(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[types.AnyFunction], types.AnyFunction]:
+        r"""
+        Register a prompt.
 
-def extract_path_parameters(parameters, arguments, url):
-    for param in parameters:
-        if param.get("in") == "path" and param.get("name") in arguments:
-            param_name = param.get("name")
-            if param_name is None:
-                raise ValueError(f"Parameter name is None for parameter: {param}")
-            url = url.replace(f"{{{param_name}}}", str(arguments.pop(param_name)))
-    return url
+        Args:
+        ----
+            name: Optional name for the prompt (defaults to function name)
+            description: Optional description of what the prompt does
 
+        Example:
+        -------
+            @server.prompt()
+            def analyze_table(table_name: str) -> list[Message]:
+                schema = read_table_schema(table_name)
+                return [
+                    {
+                        "role": "user",
+                        "content": f"Analyze this schema:\n{schema}"
+                    }
+                ]
 
-def extract_dict_parameters(parameters, arguments, location_type):
-    result = {}
-    for param in parameters:
-        if param.get("in") == location_type and param.get("name") in arguments:
-            param_name = param.get("name")
-            if param_name is None:
-                raise ValueError(f"Parameter name is None for parameter: {param}")
-            result[param_name] = arguments.pop(param_name)
-    return result
+            @server.prompt()
+            async def analyze_file(path: str) -> list[Message]:
+                content = await read_file(path)
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "resource",
+                            "resource": {
+                                "uri": f"file://{path}",
+                                "text": content
+                            }
+                        }
+                    }
+                ]
+
+        """
+        # Check if user passed function directly instead of calling decorator
+        if callable(name):
+            raise TypeError(
+                "The @prompt decorator was used incorrectly. "
+                "Did you forget to call it? Use @prompt() instead of @prompt"
+            )
+
+        def decorator(func: types.AnyFunction) -> types.AnyFunction:
+            prompt = types.Prompt.from_function(func, name=name, description=description)
+            self.prompts[prompt.name] = prompt
+            return func
+
+        return decorator

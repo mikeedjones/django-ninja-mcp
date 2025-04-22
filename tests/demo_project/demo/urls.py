@@ -19,6 +19,14 @@ def hello(request, item: Item):
 
 
 mcp = NinjaMCP(api, name="Test MCP Server", description="Test description", base_url="http://localhost:8000")
+
+
+@mcp.prompt()
+def ask_review(code_snippet: str) -> str:
+    return f"Please review the following code snippet: {code_snippet}"
+
+
 mcp.mount()
+
 
 urlpatterns = [path("admin/", admin.site.urls), path("api/", api.urls)]
