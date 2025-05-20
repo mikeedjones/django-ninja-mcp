@@ -217,7 +217,7 @@ class NinjaMCP:
         logger.info(f"MCP server listening at {mount_path}")
 
     @property
-    def router(self) -> NinjaAPI | Router:
+    def router(self) -> Router:
         """
         Get the router associated with the MCP server.
 
