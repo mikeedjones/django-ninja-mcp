@@ -36,15 +36,25 @@ import json
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 import httpx
 import mcp.types as types
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from mcp.server.lowlevel.server import Server
 from ninja import Body, NinjaAPI, Path, Router
+from ninja.constants import NOT_SET, NOT_SET_TYPE
 from ninja.openapi import get_schema
+from ninja.throttling import BaseThrottle
+from ninja.types import TCallable
 
 from .openapi.convert import HttpMethod, convert_openapi_to_mcp_tools
 from .transport.sse import DjangoSseServerTransport
@@ -115,6 +125,7 @@ class NinjaMCP:
         self._exclude_operations = exclude_operations
         self._include_tags = include_tags
         self._exclude_tags = exclude_tags
+        self._router: Router | None = None
 
         self._http_client = httpx.AsyncClient()
 
@@ -180,21 +191,23 @@ class NinjaMCP:
         if mount_path.endswith("/"):
             mount_path = mount_path[:-1]
 
-        if not router:
-            router = self.ninja
+        if router:
+            self._router = router
 
         # Create the SSE transport
         sse_transport = DjangoSseServerTransport(f"{mount_path}/messages/", self.server)
 
         # Define the SSE connection endpoint
-        @router.event_source(mount_path, include_in_schema=False, operation_id="mcp_connection")
+        @self._event_source(mount_path, include_in_schema=False, operation_id="mcp_connection")
         async def handle_mcp_connection(request):
             """Handle SSE connection for MCP clients."""
             async for event in sse_transport.connect_sse(request):
                 yield event
 
         # Define the endpoint for receiving messages from clients
-        @router.post("/{session_id}", include_in_schema=False, response=dict[str, Any], operation_id="mcp_messages")
+        @self.router.post(
+            "/{session_id}", include_in_schema=False, response=dict[str, Any], operation_id="mcp_messages"
+        )
         async def handle_post_message(
             request, session_id: Path[UUID], message: Body[types.JSONRPCMessage]
         ) -> HttpResponse:
@@ -202,6 +215,20 @@ class NinjaMCP:
             return await sse_transport.handle_post_message(session_id, message)
 
         logger.info(f"MCP server listening at {mount_path}")
+
+    @property
+    def router(self) -> NinjaAPI | Router:
+        """
+        Get the router associated with the MCP server.
+
+        Returns
+        -------
+            The router associated with the MCP server
+
+        """
+        if not self._router:
+            return self.ninja.default_router
+        return self._router
 
     async def _execute_api_tool(
         self,
@@ -405,5 +432,58 @@ class NinjaMCP:
             prompt = types.Prompt.from_function(func, name=name, description=description)
             self.prompts[prompt.name] = prompt
             return func
+
+        return decorator
+
+    def _event_source(
+        self,
+        path: str,
+        *,
+        auth: Any = NOT_SET,
+        throttle: Union[BaseThrottle, List[BaseThrottle], NOT_SET_TYPE] = NOT_SET,
+        response: Any = NOT_SET,
+        operation_id: Optional[str] = None,
+        summary: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        deprecated: Optional[bool] = None,
+        by_alias: Optional[bool] = None,
+        exclude_unset: Optional[bool] = None,
+        exclude_defaults: Optional[bool] = None,
+        exclude_none: Optional[bool] = None,
+        url_name: Optional[str] = None,
+        include_in_schema: bool = True,
+        openapi_extra: Optional[Dict[str, Any]] = None,
+    ) -> Callable[[TCallable], TCallable]:
+        def decorator(view_func: TCallable) -> TCallable:
+            def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
+                response = StreamingHttpResponse(
+                    view_func(request, *args, **kwargs),
+                    content_type="text/event-stream",
+                )
+                response["Cache-Control"] = "no-cache"
+                return response
+
+            self.router.add_api_operation(
+                path,
+                methods=["GET"],
+                view_func=wrapped_view,
+                auth=auth,
+                throttle=throttle,
+                response=response,
+                operation_id=operation_id,
+                summary=summary,
+                description=description,
+                tags=tags,
+                deprecated=deprecated,
+                by_alias=by_alias,
+                exclude_unset=exclude_unset,
+                exclude_defaults=exclude_defaults,
+                exclude_none=exclude_none,
+                url_name=url_name,
+                include_in_schema=include_in_schema,
+                openapi_extra=openapi_extra,
+            )
+            return view_func
 
         return decorator
