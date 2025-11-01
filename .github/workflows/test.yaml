@@ -60,7 +60,7 @@ jobs:
       - name: Generate coverage report
         run: uv run coverage html --omit=tests/*
       - name: Store coverage HTML
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-html
           path: htmlcov
