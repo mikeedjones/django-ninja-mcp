@@ -12,6 +12,10 @@ Automatic [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) serve
 > [!WARNING]
 > **This depends on an unmerged addition to Django Ninja.** The `django-ninja-mcp` package depends on a [change to Django Ninja that has not yet been merged](https://github.com/mikeedjones/django-ninja/tree/updated-sse) forked from [@rroblf01's PR.](https://github.com/vitalik/django-ninja/pull/1388).
 
+> [!WARNING]
+> Exactly remapping an REST api as an MCP server is probably a mistake. Consider building your server explicitly.
+
+
 ## What is MCP?
 
 The Model Context Protocol (MCP) is an open protocol that standardizes how applications provide context to Large Language Models (LLMs). Think of MCP like a USB-C port for AI applications - it provides a standardized way to connect AI models to different data sources and tools.
